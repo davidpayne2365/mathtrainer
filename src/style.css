@@ -150,6 +150,11 @@ a {
   color: var(--accent);
   border: 1px solid var(--line);
 }
+.btn.ghost.primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
 .btn.danger {
   background: var(--wrong-bg);
   color: var(--wrong);

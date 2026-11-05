@@ -57,11 +57,12 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     inputMode: decimal ? 'decimal' : 'numeric',
     pattern: decimal ? undefined : '[0-9]*',
     autocomplete: 'off',
-    autocorrect: 'off',
     spellcheck: false,
     enterKeyHint: 'done',
     'aria-label': 'Your answer',
   });
+  // Set as an attribute: Safari's `autocorrect` property is a boolean, so 'off' would turn it on.
+  input.setAttribute('autocorrect', 'off');
 
   const status = h('div', { class: 'status', 'aria-live': 'polite' });
   const hintBox = h('div', { class: 'hint' });
@@ -69,7 +70,13 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
   const review = h('div', { class: 'review' });
 
   const hintBtn = h('button', { class: 'btn ghost', type: 'button', onclick: showHint }, 'Show method');
-  const skipBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => check(true) }, "I don't know");
+  // Doubles as "Check" once something is typed: the iPhone number pad has no Enter key,
+  // so a wrong answer shorter than the real one would otherwise never be checked.
+  const skipBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => check(input.value.trim() === '') }, "I don't know");
+  const syncSkip = () => {
+    skipBtn.textContent = input.value.trim() === '' ? "I don't know" : 'Check';
+    skipBtn.classList.toggle('primary', input.value.trim() !== '');
+  };
   if (opts.hint) actions.append(hintBtn);
   actions.append(skipBtn);
 
@@ -108,8 +115,10 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     let v = input.value.replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '');
     if (decimal) v = v.replace(/(\..*)\./g, '$1');
     if (v !== input.value) input.value = v;
+    syncSkip();
+    // Auto-check once as many characters as the answer has are typed (not mid-way through "4.").
     const typed = v.replace(/^0+(?=\d)/, '');
-    if (typed.length >= target.length) check(false);
+    if (typed.length >= target.length && !typed.endsWith('.')) check(false);
   }
 
   function check(gaveUp: boolean) {
