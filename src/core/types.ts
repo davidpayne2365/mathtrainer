@@ -11,8 +11,13 @@ export const SKILL_NAMES: Record<Skill, string> = {
 
 /** One line of a "fast way" walkthrough. `value` is the running result after this step, if any. */
 export interface Step {
+  /** The math for this step, e.g. "478 + 300 = 778". */
   text: string;
   value?: number;
+  /** Plain-English explanation of what this step does and why. */
+  why: string;
+  /** On the first step only: the idea behind the whole method. */
+  intro?: string;
 }
 
 export interface Problem {

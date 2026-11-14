@@ -26,6 +26,10 @@ describe('fact sets', () => {
         expect(last.value).toBe(truth);
         expect(last.text.endsWith(`= ${truth}`), last.text).toBe(true);
         for (const s of p.steps) if (s.value !== undefined) expect(Number.isInteger(s.value)).toBe(true);
+        expect(p.steps[0].intro).toBeTruthy();
+        for (const s of p.steps) expect(s.why.length).toBeGreaterThan(10);
+        // Every fact ends by having you say it in words.
+        expect(last.why).toMatch(/"[a-z -]+ (plus|minus|times) [a-z -]+ is [a-z -]+\."/);
       }
     }
   });

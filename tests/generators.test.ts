@@ -91,6 +91,13 @@ describe('every problem type', () => {
         }
       });
 
+      it('teaches: an idea up front and a plain-English reason for every step', () => {
+        for (const p of probs) {
+          expect(p.steps[0].intro?.length ?? 0, p.prompt).toBeGreaterThan(20);
+          for (const s of p.steps) expect(s.why.length, s.text).toBeGreaterThan(15);
+        }
+      });
+
       it('produces varied problems', () => {
         expect(new Set(probs.map((p) => p.prompt)).size).toBeGreaterThan(Math.min(20, N / 10));
       });
