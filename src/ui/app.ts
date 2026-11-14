@@ -15,6 +15,8 @@ export const app: { prog: Progress; prefs: Prefs; save(): void } = {
 export interface View {
   el: HTMLElement;
   cleanup?: () => void;
+  /** Called once the view is on screen (e.g. focus the answer box). */
+  focus?: () => void;
 }
 
 export function navigate(hash: string): void {

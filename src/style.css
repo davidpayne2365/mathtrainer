@@ -95,7 +95,7 @@ body {
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: max(8px, env(safe-area-inset-top)) max(16px, calc((100% - 528px) / 2)) 24px;
+  padding: 8px max(16px, calc((100% - 528px) / 2)) 24px;
 }
 
 h1 {
@@ -119,28 +119,42 @@ a {
   font-size: 1.05rem;
 }
 
-/* ---------- bottom tabs ---------- */
+/* ---------- top tabs ---------- */
 .tabs {
   flex: none;
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 4px;
   background: var(--surface);
-  border-top: 1px solid var(--line);
-  padding-bottom: env(safe-area-inset-bottom);
+  border-bottom: 1px solid var(--line);
+  padding: env(safe-area-inset-top) max(8px, calc((100% - 544px) / 2)) 0;
   z-index: 10;
 }
 .tabs a {
   flex: 1;
-  max-width: 140px;
-  height: var(--tabs-h);
+  height: 42px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  font-size: 0.75rem;
+  gap: 6px;
+  font-size: 0.92rem;
+  font-weight: 600;
   color: var(--muted);
   text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.tabs a.on {
+  border-bottom-color: var(--accent);
+}
+.sound-toggle {
+  flex: none;
+  width: 44px;
+  height: 42px;
+  border: 0;
+  background: transparent;
+  font-size: 1.2rem;
+  cursor: pointer;
 }
 .tabs a.on {
   color: var(--accent);
@@ -617,8 +631,8 @@ a {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabs-h) + 16px + env(safe-area-inset-bottom));
-  transform: translate(-50%, 20px);
+  top: calc(env(safe-area-inset-top) + 52px);
+  transform: translate(-50%, -20px);
   opacity: 0;
   background: var(--text);
   color: var(--bg);
@@ -781,4 +795,27 @@ a {
 }
 .is-wrong .status {
   flex-wrap: wrap;
+}
+
+.practice .answer {
+  font-size: 2.2rem;
+  padding: 2px 0;
+}
+
+/* Short phones (iPhone SE): keep the answer box clear of the keyboard. */
+@media (max-height: 600px) {
+  .practice .seg button {
+    min-height: 34px;
+  }
+  .practice .lvl {
+    min-height: 30px;
+  }
+  .practice .prompt {
+    font-size: 2rem;
+    margin: 2px 0 6px;
+  }
+  .tabs a,
+  .sound-toggle {
+    height: 38px;
+  }
 }
