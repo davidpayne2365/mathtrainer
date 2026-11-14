@@ -766,3 +766,19 @@ a {
 .status .flash {
   max-width: 100%;
 }
+
+/* ---------- miss: retype the answer ---------- */
+.answer::placeholder {
+  color: var(--wrong);
+  opacity: 0.35;
+}
+.retype-note {
+  font-weight: 500;
+  color: var(--muted);
+}
+.field.shake {
+  animation: shake 0.3s;
+}
+.is-wrong .status {
+  flex-wrap: wrap;
+}

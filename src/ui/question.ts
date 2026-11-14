@@ -99,10 +99,16 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
   const actions = h('div', { class: 'actions' });
   const review = h('div', { class: 'review' });
 
-  const hintBtn = h('button', { class: 'btn ghost', type: 'button', onclick: showHint }, 'Show method');
+  // Tapping a button must not move focus out of the answer box, or the phone keyboard drops.
+  const keepFocus = (e: Event) => e.preventDefault();
+  const hintBtn = h('button', { class: 'btn ghost', type: 'button', onmousedown: keepFocus, onpointerdown: keepFocus, onclick: showHint }, 'Show method');
   // Doubles as "Check" once something is typed: the iPhone number pad has no Enter key,
   // so a wrong answer shorter than the real one would otherwise never be checked.
-  const skipBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => check(input.value.trim() === '') }, "I don't know");
+  const skipBtn = h(
+    'button',
+    { class: 'btn ghost', type: 'button', onmousedown: keepFocus, onpointerdown: keepFocus, onclick: () => check(input.value.trim() === '') },
+    "I don't know",
+  );
   const syncSkip = () => {
     skipBtn.textContent = input.value.trim() === '' ? "I don't know" : 'Check';
     skipBtn.classList.toggle('primary', input.value.trim() !== '');
@@ -141,16 +147,37 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     input.focus({ preventScroll: true });
   }
 
+  /** After a miss: you type the right answer to move on, so the keyboard never drops. */
+  let retype = false;
+
   function onInput() {
-    if (answered) return;
+    if (answered && !retype) return;
     // Keep only digits (and one decimal point when allowed).
     let v = input.value.replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '');
     if (decimal) v = v.replace(/(\..*)\./g, '$1');
     if (v !== input.value) input.value = v;
+    const typed = v.replace(/^0+(?=\d)/, '');
+    if (retype) {
+      if (typed.length >= target.length && !typed.endsWith('.')) retypeCheck();
+      return;
+    }
     syncSkip();
     // Auto-check once as many characters as the answer has are typed (not mid-way through "4.").
-    const typed = v.replace(/^0+(?=\d)/, '');
     if (typed.length >= target.length && !typed.endsWith('.')) check(false);
+  }
+
+  function retypeCheck() {
+    const raw = input.value.trim();
+    if (raw !== '' && Math.abs(Number(raw) - problem.answer) < 1e-9) {
+      retype = false;
+      opts.onNext();
+      return;
+    }
+    // Not it yet: clear and try again, keyboard stays up.
+    input.value = '';
+    field.classList.remove('shake');
+    void field.offsetWidth;
+    field.classList.add('shake');
   }
 
   function check(gaveUp: boolean) {
@@ -181,8 +208,6 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
       return;
     }
 
-    input.readOnly = true;
-    input.blur();
     el.classList.add(correct ? (res.outcome === 'slow' ? 'is-slow' : 'is-right') : 'is-wrong');
     const secsText = `${(ms / 1000).toFixed(1)}s`;
     const answerText = answerLabel(problem);
@@ -194,24 +219,34 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
         hintShown > 0 ? ` Correct with a hint · ${secsText}` : ` Correct but slow · ${secsText} (aim for ${level.targetSec}s)`,
       );
     } else {
-      status.replaceChildren(icon('x', 20), gaveUp || raw === '' ? ` Answer: ${answerText}` : ` You said ${raw} — answer is ${answerText}`);
+      status.replaceChildren(
+        icon('x', 20),
+        gaveUp || raw === '' ? ` Answer: ${answerText}` : ` You said ${raw} — it's ${answerText}`,
+        h('span', { class: 'retype-note' }, ` · type ${answerText.replace(/^\$|%$/g, '')} to go on`),
+      );
     }
 
-    const nextBtn = h('button', { class: 'btn primary big', type: 'button', onclick: () => opts.onNext() }, opts.nextLabel ?? 'Next');
+    // Stay in the answer box with the keyboard up: type the right answer to move on.
+    retype = true;
+    input.value = '';
+    input.placeholder = answerString(problem.answer);
     hintBox.replaceChildren();
-    actions.replaceChildren();
+    actions.replaceChildren(
+      h('button', { class: 'btn ghost', type: 'button', onmousedown: keepFocus, onpointerdown: keepFocus, onclick: () => opts.onNext() }, opts.nextLabel ?? 'Skip'),
+    );
     const title = isFactType(problem.type) ? 'Lock it in' : 'The fast way';
-    // Next sits right under the answer so it's reachable without scrolling; the lesson follows.
-    review.replaceChildren(nextBtn, h('div', { class: 'review-title' }, title), lesson(problem.steps));
+    review.replaceChildren(h('div', { class: 'review-title' }, title), lesson(problem.steps));
+    el.querySelector('.prev-lesson')?.remove();
     opts.onReview?.({ ...res, correct, ms });
-    nextBtn.focus({ preventScroll: true });
+    input.focus({ preventScroll: true });
   }
 
   input.addEventListener('input', onInput);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      check(false);
+      if (retype) retypeCheck();
+      else check(false);
     }
   });
 

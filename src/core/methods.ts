@@ -159,10 +159,10 @@ export function factSteps(a: number, b: number): Step[] {
   if (a === 10 || b === 10) {
     const other = a === 10 ? b : a;
     why = `Adding 10 just puts a 1 in front: 10 and ${other} is ${sum}. Say it: "${words(a)} plus ${words(b)} is ${words(sum)}."`;
-  } else if (Math.min(a, b) <= 3) {
-    why = `Start at the bigger number, ${Math.max(a, b)}, and count up ${Math.min(a, b)}: ${Array.from({ length: Math.min(a, b) }, (_, i) => Math.max(a, b) + i + 1).join(', ')}. Say it: "${words(a)} plus ${words(b)} is ${words(sum)}."`;
   } else if (sum === 10) {
     why = `${a} and ${b} are a pair that makes 10 — learn these pairs by heart, they are used everywhere. Say it: "${words(a)} plus ${words(b)} is ten."`;
+  } else if (Math.min(a, b) <= 3) {
+    why = `Start at the bigger number, ${Math.max(a, b)}, and count up ${Math.min(a, b)}: ${Array.from({ length: Math.min(a, b) }, (_, i) => Math.max(a, b) + i + 1).join(', ')}. Say it: "${words(a)} plus ${words(b)} is ${words(sum)}."`;
   } else if (a === b) {
     why = `A double: ${a} + ${a} is ${sum}. Doubles are the easiest facts to remember. Say it: "${words(a)} plus ${words(b)} is ${words(sum)}."`;
   } else {
