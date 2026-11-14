@@ -30,16 +30,9 @@ npm run preview    # serve dist/ (service worker active)
 
 Live (Netlify): https://mental-math-trainer-dp.netlify.app
 
-To redeploy there: `npm run build`, zip the contents of `dist/`, and POST the zip to the Netlify deploys API for the site (or drag `dist/` onto the site's Deploys page).
+To redeploy: `npm run build`, then upload the contents of `dist/` to the Netlify site (drag the folder onto the site's Deploys page, or POST a zip of it to the Netlify deploys API).
 
-### GitHub Pages
-
-
-`.github/workflows/deploy.yml` tests, builds and publishes `dist/` to GitHub Pages on every push to the default branch.
-
-One-time setup: in the repo go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**, then re-run the workflow (Actions tab → *Deploy to GitHub Pages* → *Run workflow*).
-
-The site is then at `https://<user>.github.io/<repo>/`. On your phone, open it and use **Add to Home Screen** (iOS Share menu, or Android's *Install app*) to install it; it works offline after the first visit.
+`.github/workflows/ci.yml` runs the tests and a production build on every push.
 
 ## Tech
 
