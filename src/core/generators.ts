@@ -73,6 +73,20 @@ function addCarries(a: number, b: number): boolean {
 
 const addTypes: TypeDef[] = [
   {
+    id: 'add.22',
+    skill: 'add',
+    label: '2-digit numbers',
+    gen: (rng) => {
+      const a = int(rng, 11, 89);
+      // Mostly 2-digit + 2-digit, some 2-digit + 1-digit (crossing a ten, like 47 + 8).
+      const b = chance(rng, 0.7) ? int(rng, 11, 89) : int(rng, 3, 9);
+      if (a % 10 === 0 || b % 10 === 0 || nearRoundUp(a) || nearRoundUp(b)) return null;
+      if (b < 10 && (a % 10) + b < 10) return null; // + 1-digit is only worth practising when it crosses a ten
+      if (!addCarries(a, b) && chance(rng, 0.7)) return null;
+      return addDraft(a, b);
+    },
+  },
+  {
     id: 'add.32',
     skill: 'add',
     label: '3-digit + 2-digit',
@@ -132,6 +146,18 @@ function needsBorrow(a: number, b: number): boolean {
 }
 
 const subTypes: TypeDef[] = [
+  {
+    id: 'sub.22',
+    skill: 'sub',
+    label: '2-digit − 2-digit',
+    gen: (rng) => {
+      const a = int(rng, 30, 99);
+      const b = int(rng, 11, a - 5);
+      if (b % 10 === 0 || nearRoundUp(b) || Math.floor(a / 10) === Math.floor(b / 10)) return null;
+      if (a % 10 >= b % 10 && chance(rng, 0.85)) return null; // favour the "borrow" cases
+      return subDraft(a, b);
+    },
+  },
   {
     id: 'sub.fromRound',
     skill: 'sub',
@@ -377,18 +403,20 @@ export const TYPES: Record<string, TypeDef> = Object.fromEntries(
 export const LEVELS: Record<Skill, LevelDef[]> = {
   add: [
     { skill: 'add', level: 1, name: 'Facts 1–10', blurb: 'Memorize every fact from 1 + 1 to 10 + 10. Instant recall, no working out.', targetSec: 2, types: ['add.fact'] },
-    { skill: 'add', level: 2, name: '3-digit + 2-digit', blurb: 'Left to right: tens, then ones.', targetSec: 6, types: ['add.32'] },
-    { skill: 'add', level: 3, name: '3-digit + 3-digit', blurb: 'Hundreds, tens, ones — keep a running total.', targetSec: 8, types: ['add.33'] },
-    { skill: 'add', level: 4, name: 'Round & adjust', blurb: '478 + 199 → 478 + 200 − 1.', targetSec: 6, types: ['add.round3', 'add.round2'] },
-    { skill: 'add', level: 5, name: 'Mixed mastery', blurb: 'Pick the fastest move for each problem.', targetSec: 7, types: ['add.32', 'add.33', 'add.33', 'add.round3', 'add.round2'] },
+    { skill: 'add', level: 2, name: '2-digit numbers', blurb: '47 + 38 → 47 + 30 = 77, + 8 = 85. Tens first, then ones.', targetSec: 4, types: ['add.22'] },
+    { skill: 'add', level: 3, name: '3-digit + 2-digit', blurb: 'Left to right: tens, then ones.', targetSec: 6, types: ['add.32'] },
+    { skill: 'add', level: 4, name: '3-digit + 3-digit', blurb: 'Hundreds, tens, ones — keep a running total.', targetSec: 8, types: ['add.33'] },
+    { skill: 'add', level: 5, name: 'Round & adjust', blurb: '478 + 199 → 478 + 200 − 1.', targetSec: 6, types: ['add.round3', 'add.round2'] },
+    { skill: 'add', level: 6, name: 'Mixed mastery', blurb: 'Pick the fastest move for each problem.', targetSec: 7, types: ['add.32', 'add.33', 'add.33', 'add.round3', 'add.round2'] },
   ],
   sub: [
     { skill: 'sub', level: 1, name: 'Facts 1–10', blurb: 'Memorize every fact from 2 − 1 to 20 − 10. Instant recall, no working out.', targetSec: 2, types: ['sub.fact'] },
-    { skill: 'sub', level: 2, name: 'Count up from round numbers', blurb: '500 − 268: 268 → 300 → 500.', targetSec: 7, types: ['sub.fromRound'] },
-    { skill: 'sub', level: 3, name: '3-digit − 2-digit', blurb: '423 − 68: 68 → 100 → 423.', targetSec: 7, types: ['sub.32'] },
-    { skill: 'sub', level: 4, name: '3-digit − 3-digit', blurb: '703 − 468: 468 → 500 → 703.', targetSec: 9, types: ['sub.33'] },
-    { skill: 'sub', level: 5, name: 'Round & adjust', blurb: '625 − 298 → 625 − 300 + 2.', targetSec: 6, types: ['sub.round3', 'sub.round2'] },
-    { skill: 'sub', level: 6, name: 'Mixed mastery', blurb: 'Count up or round — whichever is faster.', targetSec: 8, types: ['sub.fromRound', 'sub.32', 'sub.33', 'sub.33', 'sub.round3', 'sub.round2'] },
+    { skill: 'sub', level: 2, name: '2-digit − 2-digit', blurb: '52 − 27: 27 → 30 → 52, so 3 + 22 = 25.', targetSec: 5, types: ['sub.22'] },
+    { skill: 'sub', level: 3, name: 'Count up from round numbers', blurb: '500 − 268: 268 → 300 → 500.', targetSec: 7, types: ['sub.fromRound'] },
+    { skill: 'sub', level: 4, name: '3-digit − 2-digit', blurb: '423 − 68: 68 → 100 → 423.', targetSec: 7, types: ['sub.32'] },
+    { skill: 'sub', level: 5, name: '3-digit − 3-digit', blurb: '703 − 468: 468 → 500 → 703.', targetSec: 9, types: ['sub.33'] },
+    { skill: 'sub', level: 6, name: 'Round & adjust', blurb: '625 − 298 → 625 − 300 + 2.', targetSec: 6, types: ['sub.round3', 'sub.round2'] },
+    { skill: 'sub', level: 7, name: 'Mixed mastery', blurb: 'Count up or round — whichever is faster.', targetSec: 8, types: ['sub.fromRound', 'sub.32', 'sub.33', 'sub.33', 'sub.round3', 'sub.round2'] },
   ],
   mul: [
     { skill: 'mul', level: 1, name: 'Times tables 1–10', blurb: 'Memorize every fact from 1 × 1 to 10 × 10. Instant recall, no working out.', targetSec: 2.5, types: ['mul.fact'] },

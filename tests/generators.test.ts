@@ -16,6 +16,7 @@ function solve(p: Problem): number | null {
   const [x, y] = nums;
   switch (p.type) {
     case 'add.fact':
+    case 'add.22':
     case 'add.32':
     case 'add.33':
     case 'add.round3':
@@ -24,6 +25,7 @@ function solve(p: Problem): number | null {
     case 'mul.fact':
       return x * y;
     case 'sub.fact':
+    case 'sub.22':
     case 'sub.fromRound':
     case 'sub.32':
     case 'sub.33':
@@ -192,5 +194,44 @@ describe('level generation', () => {
 
   it('every level type id exists', () => {
     for (const skill of SKILLS) for (const def of LEVELS[skill]) for (const t of def.types) expect(TYPES[t]).toBeDefined();
+  });
+});
+
+describe('2-digit levels', () => {
+  it('addition level 2 uses 2-digit numbers (some + 1-digit) and never 3-digit operands', () => {
+    const rng = mulberry32(3);
+    let oneDigit = 0;
+    for (let i = 0; i < 400; i++) {
+      const p = generateOfType('add.22', 2, rng);
+      const [a, b] = p.prompt.split(' + ').map(Number);
+      expect(a).toBeGreaterThanOrEqual(10);
+      expect(a).toBeLessThan(100);
+      expect(b).toBeLessThan(100);
+      if (b < 10) {
+        oneDigit++;
+        expect((a % 10) + b, p.prompt).toBeGreaterThanOrEqual(10);
+      }
+    }
+    expect(oneDigit).toBeGreaterThan(40);
+    expect(oneDigit).toBeLessThan(200);
+  });
+
+  it('subtraction level 2 is 2-digit − 2-digit, counting up through a ten', () => {
+    const rng = mulberry32(4);
+    for (let i = 0; i < 400; i++) {
+      const p = generateOfType('sub.22', 2, rng);
+      const [a, b] = p.prompt.split(' − ').map(Number);
+      expect(a).toBeLessThan(100);
+      expect(b).toBeGreaterThanOrEqual(10);
+      expect(p.answer).toBeGreaterThan(0);
+      expect(p.steps[0].text).toMatch(/^Count up \d+ → \d*0\b/);
+    }
+  });
+
+  it('level 2 sits between facts and 3-digit work', () => {
+    expect(LEVELS.add[1].types).toEqual(['add.22']);
+    expect(LEVELS.add[2].types).toEqual(['add.32']);
+    expect(LEVELS.sub[1].types).toEqual(['sub.22']);
+    expect(LEVELS.sub[2].types).toEqual(['sub.fromRound']);
   });
 });

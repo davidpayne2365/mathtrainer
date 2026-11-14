@@ -305,6 +305,13 @@ export function countUpSteps(a: number, b: number): Step[] {
   let mid: number | null = null;
   if (b % 100 !== 0 && Math.ceil(b / 100) * 100 <= a) mid = Math.ceil(b / 100) * 100;
   else if (b % 10 !== 0 && Math.ceil(b / 10) * 10 <= a) mid = Math.ceil(b / 10) * 10;
+  if (mid === null && b % 10 !== 0) {
+    // Same ten (e.g. 56 − 51): nothing to bridge, just count the small gap.
+    return withIntro(
+      [{ text: `Count up ${fmt(b)} → ${fmt(a)}: +${fmt(ans)}`, value: ans, why: `${fmt(b)} and ${fmt(a)} are close together, so just count up from ${fmt(b)} to ${fmt(a)}: that is ${fmt(ans)}.` }],
+      intro,
+    );
+  }
   if (mid === null || b % 100 === 0) {
     // Nothing to bridge (e.g. 703 − 400): just take it away.
     return withIntro(

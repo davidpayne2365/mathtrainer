@@ -107,8 +107,8 @@ describe('adaptive selection', () => {
 
   it('brings back a similar problem a few questions after a miss', () => {
     const prog = defaultProgress();
-    const pool = [{ skill: 'add' as const, level: 4 }];
-    const missed = generateOfType('add.round2', 4, rng);
+    const pool = [{ skill: 'add' as const, level: 5 }];
+    const missed = generateOfType('add.round2', 5, rng);
     recordAnswer(prog, missed, { correct: false, ms: 2000 });
     const seen: string[] = [];
     for (let i = 0; i < RETRY_GAP; i++) {
@@ -180,8 +180,8 @@ describe('stats', () => {
   });
 });
 
-describe('migration from v1', () => {
-  it('shifts subtraction levels up one to make room for facts', () => {
+describe('migrating stored progress', () => {
+  it('v1: shifts subtraction up for facts, then add/sub up for the 2-digit level', () => {
     const old = {
       version: 1,
       unlocked: { add: 2, sub: 3, pct: 1 },
@@ -189,10 +189,26 @@ describe('migration from v1', () => {
       retry: [{ type: 'sub.33', skill: 'sub', level: 3, due: 4 }],
     };
     const p = normalize(old);
-    expect(p.version).toBe(2);
+    expect(p.version).toBe(3);
     expect(p.unlocked).toEqual({ add: 1, sub: 1, mul: 1, pct: 1 }); // facts not mastered yet, so level 2+ re-locks
-    expect(Object.keys(p.levels).sort()).toEqual(['add:2', 'sub:4']);
-    expect(p.retry[0].level).toBe(4);
-    expect(Object.keys(normalize(p).levels).sort()).toEqual(['add:2', 'sub:4']); // idempotent once migrated
+    // old sub L3 (3-digit − 3-digit) → v2 L4 → v3 L5; old add L2 (3-digit + 2-digit) → v3 L3
+    expect(Object.keys(p.levels).sort()).toEqual(['add:3', 'sub:5']);
+    expect(p.retry[0].level).toBe(5);
+    expect(Object.keys(normalize(p).levels).sort()).toEqual(['add:3', 'sub:5']); // idempotent once migrated
+  });
+
+  it('v2: makes room for the new 2-digit level 2 and keeps what you unlocked', () => {
+    const prog = defaultProgress();
+    masterAll(prog); // addition facts mastered, so addition can stay unlocked
+    const stored = {
+      ...JSON.parse(JSON.stringify(prog)),
+      version: 2,
+      unlocked: { add: 3, sub: 1, mul: 1, pct: 2 },
+      levels: { 'add:1': { n: 1, correct: 1, recent: [true] }, 'add:2': { n: 4, correct: 4, recent: [true] }, 'add:3': { n: 2, correct: 1, recent: [true, false] } },
+    };
+    const p = normalize(stored);
+    expect(p.unlocked).toEqual({ add: 4, sub: 1, mul: 1, pct: 2 });
+    expect(Object.keys(p.levels).sort()).toEqual(['add:1', 'add:3', 'add:4']);
+    expect(p.levels['add:3'].n).toBe(4); // old "3-digit + 2-digit" stats now live at level 3
   });
 });

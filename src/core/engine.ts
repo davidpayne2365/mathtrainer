@@ -47,7 +47,7 @@ export interface FactStat {
 export type FactStatus = 'new' | 'learning' | 'mastered';
 
 export interface Progress {
-  version: 2;
+  version: 3;
   facts: Record<string, FactStat>;
   unlocked: Record<Skill, number>;
   levels: Record<string, LevelStat>;
@@ -70,7 +70,7 @@ const RECENT_FACT = 6;
 
 export function defaultProgress(): Progress {
   return {
-    version: 2,
+    version: 3,
     unlocked: { add: 1, sub: 1, mul: 1, pct: 1 },
     levels: {},
     types: {},
@@ -377,23 +377,33 @@ export function weakest(prog: Progress, limit = 5): WeakSpot[] {
   return spots.slice(0, limit);
 }
 
-/**
- * v1 → v2: subtraction gained a facts level at the front, so old subtraction
- * levels move up by one (you keep everything you had unlocked).
- */
-function migrate(r: Partial<Progress> & { version?: number }): Partial<Progress> {
-  if ((r.version ?? 1) >= 2) return r;
+/** Move a skill's stored levels at or above `from` up by one (a new level was inserted). */
+function shiftLevels(r: Partial<Progress>, skill: Skill, from: number): Partial<Progress> {
   const out = { ...r };
-  if (out.unlocked && typeof out.unlocked.sub === 'number') out.unlocked = { ...out.unlocked, sub: out.unlocked.sub + 1 };
+  const u = out.unlocked?.[skill];
+  if (out.unlocked && typeof u === 'number' && u >= from) out.unlocked = { ...out.unlocked, [skill]: u + 1 };
   if (out.levels) {
     out.levels = Object.fromEntries(
       Object.entries(out.levels).map(([k, v]) => {
-        const [skill, lvl] = k.split(':');
-        return [skill === 'sub' ? `sub:${Number(lvl) + 1}` : k, v];
+        const [s, lvl] = k.split(':');
+        return [s === skill && Number(lvl) >= from ? `${s}:${Number(lvl) + 1}` : k, v];
       }),
     );
   }
-  if (Array.isArray(out.retry)) out.retry = out.retry.map((x) => (x?.skill === 'sub' ? { ...x, level: x.level + 1 } : x));
+  if (Array.isArray(out.retry)) out.retry = out.retry.map((x) => (x?.skill === skill && x.level >= from ? { ...x, level: x.level + 1 } : x));
+  return out;
+}
+
+/**
+ * Upgrade stored progress when levels are inserted, so you keep what you had unlocked.
+ *  v1 → v2: subtraction gained a facts level 1.
+ *  v2 → v3: addition and subtraction gained a 2-digit level 2.
+ */
+function migrate(r: Partial<Progress> & { version?: number }): Partial<Progress> {
+  const v = r.version ?? 1;
+  let out: Partial<Progress> = r;
+  if (v < 2) out = shiftLevels(out, 'sub', 1);
+  if (v < 3) out = shiftLevels(shiftLevels(out, 'add', 2), 'sub', 2);
   return out;
 }
 
@@ -416,7 +426,7 @@ export function normalize(raw: unknown): Progress {
   return {
     ...base,
     ...r,
-    version: 2,
+    version: 3,
     unlocked,
     levels: r.levels ?? {},
     types: r.types ?? {},
