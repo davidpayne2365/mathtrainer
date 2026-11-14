@@ -3,9 +3,10 @@ import { LEVELS, levelDef } from '../core/generators';
 import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
 import { h, icon, toast } from './dom';
-import { renderQuestion } from './question';
+import { renderQuestion, type Flash } from './question';
+import { FACT_SETS, type FactSet, type FactSkill } from '../core/facts';
 
-const SHORT: Record<Skill, string> = { add: 'Add', sub: 'Subtract', pct: 'Percent' };
+const SHORT: Record<Skill, string> = { add: 'Add', sub: 'Subtract', mul: 'Times', pct: 'Percent' };
 
 /** Untimed practice for one skill and level, with hints. */
 export function practiceView(): View {
@@ -83,16 +84,16 @@ export function practiceView(): View {
         h('i', { style: { left: '90%' } }),
       ),
       h('div', { class: 'meter-sub' }, `Last ${lp.recentN}: ${lp.recentCorrect} right${need}`),
-      ...(skill === 'add' && level === 1 ? [factsLine()] : []),
+      ...(level === 1 && FACT_SETS[skill as FactSkill] ? [factsLine(FACT_SETS[skill as FactSkill])] : []),
     );
   }
 
-  function factsLine() {
-    const f = factSummary(app.prog);
+  function factsLine(set: FactSet) {
+    const f = factSummary(app.prog, set);
     return h('div', { class: 'meter-sub facts-line' }, `Facts mastered: ${f.mastered}/${f.total} · `, h('a', { href: '#/progress' }, 'see grid'));
   }
 
-  function ask(info?: { flash?: string }) {
+  function ask(info?: { flash?: Flash }) {
     const problem = nextProblem(app.prog, [{ skill, level }], Math.random, last?.prompt);
     last = problem;
     const q = renderQuestion({

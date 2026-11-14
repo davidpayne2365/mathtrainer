@@ -1,5 +1,5 @@
 import { LEVELS, generate } from '../core/generators';
-import { addSteps, changeBySteps, factSteps, pctOfSteps, percentChangeSteps, reverseSteps, subSteps, swapSteps } from '../core/methods';
+import { addSteps, changeBySteps, factSteps, mulFactSteps, subFactSteps, pctOfSteps, percentChangeSteps, reverseSteps, subSteps, swapSteps } from '../core/methods';
 import { SKILLS, SKILL_NAMES, type Skill, type Step } from '../core/types';
 import { fmt, money } from '../core/util';
 import { app, navigate, type View } from './app';
@@ -69,6 +69,41 @@ const LESSONS: Record<Skill, Lesson> = {
       {
         title: 'Tip: the jump to 100',
         body: ['The first jump is always a "make 100" pair: 68 + 32, 47 + 53. Tens add to 9, ones add to 10.'],
+      },
+      {
+        title: 'Foundation: memorize facts 1–10',
+        body: [
+          'Every jump above leans on facts like 15 − 7 = 8. Level 1 drills all 100 of them (2 − 1 up to 20 − 10) until each is instant: 3 fast, correct answers in a row marks a fact mastered, and shaky ones come back more often.',
+          'While a fact is still shaky, count up through 10 — the same move as the big method: 7 → 10 is 3, 10 → 15 is 5, so 8.',
+        ],
+        examples: [ex('15 − 7', subFactSteps(15, 7)), ex('9 − 4', subFactSteps(9, 4))],
+      },
+    ],
+  },
+  mul: {
+    tagline: 'Know the times tables 1–10 cold.',
+    method:
+      'Times tables are pure memory — the goal is to see 7 × 8 and just know 56. Level 1 drills all 55 facts (7 × 8 and 8 × 7 count as one). Answer each one 3 times in a row, fast and right, and it is mastered; the ones you miss or hesitate on keep coming back until they stick.',
+    sections: [
+      {
+        title: 'Memory aids while you learn',
+        body: [
+          'When a fact is not there yet, rebuild it from an easy anchor instead of guessing. Then say the fact to yourself so it sticks.',
+          h(
+            'table',
+            { class: 'anchors' },
+            h('tr', null, h('th', null, '× 10'), h('td', null, 'put a zero on the end')),
+            h('tr', null, h('th', null, '× 2'), h('td', null, 'double')),
+            h('tr', null, h('th', null, '× 5'), h('td', null, 'half of × 10')),
+            h('tr', null, h('th', null, '× 9'), h('td', null, '× 10, minus one more')),
+            h('tr', null, h('th', null, '× 4'), h('td', null, 'double, double again')),
+            h('tr', null, h('th', null, '× 3'), h('td', null, 'double, plus one more')),
+            h('tr', null, h('th', null, '× 6'), h('td', null, '× 5, plus one more')),
+            h('tr', null, h('th', null, '× 8'), h('td', null, 'double three times')),
+            h('tr', null, h('th', null, '× 7'), h('td', null, '× 5 plus × 2')),
+          ),
+        ],
+        examples: [ex('7 × 8', mulFactSteps(7, 8)), ex('6 × 9', mulFactSteps(6, 9)), ex('4 × 7', mulFactSteps(4, 7))],
       },
     ],
   },

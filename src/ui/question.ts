@@ -1,8 +1,10 @@
 /**
  * One question on screen: big prompt, numeric input that auto-checks as you type,
- * optional step-by-step hint, then the full "fast way" walkthrough and a Next button.
+ * optional step-by-step hint. A correct answer moves straight on (the previous problem's
+ * fast way stays one tap away); a miss stops and shows the full walkthrough.
  */
 import type { AnswerInput, AnswerResult } from '../core/engine';
+import { isFactType } from '../core/facts';
 import { levelDef } from '../core/generators';
 import type { Problem, Step } from '../core/types';
 import { answerString, clean, fmt } from '../core/util';
@@ -15,12 +17,27 @@ export interface QuestionOpts {
   /** Persist the answer; returns the outcome. */
   record: (p: Problem, input: AnswerInput) => AnswerResult;
   /** Called synchronously from the Next tap so the next input can grab focus (keeps the phone keyboard up). */
-  onNext: (info?: { flash?: string }) => void;
-  /** Short confirmation of the previous answer, shown above the prompt (fact rapid-fire). */
-  flash?: string;
+  onNext: (info?: { flash?: Flash }) => void;
+  /** Confirmation of the previous (correct) answer, shown above the prompt. */
+  flash?: Flash;
   /** Fired when the walkthrough is shown (Drill pauses its clock). */
   onReview?: (res: AnswerResult & { correct: boolean; ms: number }) => void;
   nextLabel?: string;
+}
+
+export interface Flash {
+  text: string;
+  slow: boolean;
+  steps: Step[];
+}
+
+function flashLine(f: Flash): HTMLElement {
+  return h(
+    'div',
+    { class: 'flash' + (f.slow ? ' slow' : '') },
+    h('div', { class: 'flash-text' }, icon('check', 16), ' ', f.text),
+    f.steps.length > 1 ? h('details', { class: 'flash-steps' }, h('summary', null, 'See the fast way'), stepList(f.steps)) : null,
+  );
 }
 
 export interface QuestionHandle {
@@ -95,7 +112,7 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     'section',
     { class: 'question' },
     h('div', { class: 'qmeta' }, `${level.name}`),
-    opts.flash ? h('div', { class: 'flash' }, icon('check', 16), ' ', opts.flash) : null,
+    h('div', { class: 'flash-slot' }, opts.flash ? flashLine(opts.flash) : null),
     h('div', { class: 'prompt' + (problem.prompt.length > 24 ? ' wordy' : '') }, problem.prompt),
     field,
     status,
@@ -134,11 +151,15 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     const correct = !gaveUp && raw !== '' && Math.abs(value - problem.answer) < 1e-9;
     const res = opts.record(problem, { correct, ms, hinted: hintShown > 0 });
 
-    // Facts are about instant recall: a fast correct answer goes straight to the next one,
-    // still inside the typing event so the phone keyboard stays up.
-    if (problem.type === 'add.fact' && res.outcome === 'ok') {
+    // Right answer: go straight to the next one, still inside the typing event so the
+    // phone keyboard stays up. Only misses stop for the walkthrough.
+    if (correct) {
+      const slow = res.outcome === 'slow';
+      const note = hintShown > 0 ? ' · with hint' : slow ? ` · slow (aim ${level.targetSec}s)` : '';
       opts.onReview?.({ ...res, correct, ms });
-      opts.onNext({ flash: `${problem.prompt} = ${answerLabel(problem)} · ${(ms / 1000).toFixed(1)}s` });
+      opts.onNext({
+        flash: { text: `${problem.prompt} = ${answerLabel(problem)} · ${(ms / 1000).toFixed(1)}s${note}`, slow: slow, steps: problem.steps },
+      });
       return;
     }
 
@@ -161,7 +182,7 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     const nextBtn = h('button', { class: 'btn primary big', type: 'button', onclick: () => opts.onNext() }, opts.nextLabel ?? 'Next');
     hintBox.replaceChildren();
     actions.replaceChildren();
-    const title = problem.type === 'add.fact' ? 'Lock it in' : 'The fast way';
+    const title = isFactType(problem.type) ? 'Lock it in' : 'The fast way';
     review.replaceChildren(h('div', { class: 'review-title' }, title), stepList(problem.steps), nextBtn);
     opts.onReview?.({ ...res, correct, ms });
     nextBtn.focus({ preventScroll: true });

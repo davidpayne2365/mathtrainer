@@ -708,14 +708,34 @@ a {
 }
 
 /* ---------- facts ---------- */
+.flash-slot {
+  min-height: 1.6em;
+  margin-top: 4px;
+}
 .flash {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 6px;
   font-size: 0.9rem;
   font-weight: 600;
   color: var(--right);
+}
+.flash.slow {
+  color: var(--slow);
+}
+.flash-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.flash-steps {
+  text-align: left;
+  font-weight: 400;
+  color: var(--text);
+}
+.flash-steps summary {
+  text-align: center;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 0;
 }
 .facts {
   width: 100%;
@@ -759,4 +779,18 @@ a {
 .legend span {
   padding: 3px 10px;
   border-radius: 99px;
+}
+
+.factcard summary {
+  cursor: pointer;
+  list-style: none;
+}
+.factcard summary::-webkit-details-marker {
+  display: none;
+}
+.factcard summary h2 {
+  margin: 0;
+}
+.factcard[open] summary {
+  margin-bottom: 8px;
 }

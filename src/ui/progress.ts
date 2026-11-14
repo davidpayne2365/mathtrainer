@@ -1,5 +1,5 @@
 import { FACT_MASTERY_RUN, UNLOCK_WINDOW, defaultProgress, factStatus, factSummary, levelProgress, skillTotals, streak, trend, weakest, type TrendPoint } from '../core/engine';
-import { factKey } from '../core/generators';
+import { FACT_SETS, type FactSet } from '../core/facts';
 import { LEVELS, levelDef } from '../core/generators';
 import { clearProgress, type Theme } from '../core/storage';
 import { SKILLS, SKILL_NAMES, type Skill } from '../core/types';
@@ -39,26 +39,27 @@ function sparkline(points: (number | null)[], max: number, label: string, invert
   );
 }
 
-/** 10×10 addition table colored by how well each fact is memorized. */
-function factGrid(): HTMLElement {
-  const f = factSummary(app.prog);
-  const head = h('tr', null, h('th', null, '+'), ...Array.from({ length: 10 }, (_, i) => h('th', null, String(i + 1))));
+/** 10×10 table colored by how well each fact is memorized. */
+function factGrid(set: FactSet): HTMLElement {
+  const f = factSummary(app.prog, set);
+  const head = h('tr', null, h('th', null, set.grid.corner), ...Array.from({ length: 10 }, (_, i) => h('th', null, String(i + 1))));
   const rows = Array.from({ length: 10 }, (_, r) =>
     h(
       'tr',
       null,
       h('th', null, String(r + 1)),
       ...Array.from({ length: 10 }, (_, c) => {
-        const status = factStatus(app.prog.facts[factKey(r + 1, c + 1)]);
-        return h('td', { class: status, title: `${r + 1} + ${c + 1} = ${r + c + 2} (${status})` }, String(r + c + 2));
+        const cell = set.grid.cell(r + 1, c + 1);
+        const status = factStatus(app.prog.facts[set.keyOf(cell.operands)]);
+        return h('td', { class: status, title: `${cell.title} (${status})` }, cell.text);
       }),
     ),
   );
   return h(
-    'section',
-    { class: 'card' },
-    h('div', { class: 'card-head' }, h('h2', null, 'Addition facts 1–10'), h('span', { class: 'pill' }, `${f.mastered}/${f.total} mastered`)),
-    h('p', { class: 'muted' }, `A fact is mastered after ${FACT_MASTERY_RUN} fast, correct answers in a row. 8 + 7 and 7 + 8 count as one fact.`),
+    'details',
+    { class: 'card factcard', open: f.mastered < f.total },
+    h('summary', { class: 'card-head' }, h('h2', null, set.title), h('span', { class: 'pill' }, `${f.mastered}/${f.total} mastered`)),
+    h('p', { class: 'muted' }, `Mastered = ${FACT_MASTERY_RUN} fast, correct answers in a row. ${set.grid.help}`),
     h('table', { class: 'facts' }, head, ...rows),
     h(
       'div',
@@ -136,7 +137,7 @@ export function progressView(): View {
         h('div', null, h('b', null, String(prog.run)), h('span', null, 'correct in a row')),
         h('div', null, h('b', null, String(prog.bestRun)), h('span', null, 'best run')),
       ),
-      factGrid(),
+      ...Object.values(FACT_SETS).map(factGrid),
       ...SKILLS.map(skillCard),
       h(
         'section',

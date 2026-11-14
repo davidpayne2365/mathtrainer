@@ -3,7 +3,7 @@ import { levelDef } from '../core/generators';
 import { SKILLS, SKILL_NAMES, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
 import { h, pct, secs, toast } from './dom';
-import { answerLabel, renderQuestion, stepList } from './question';
+import { answerLabel, renderQuestion, stepList, type Flash } from './question';
 
 type Mode = 'timed' | 'set';
 const ROUND_MS = 60_000;
@@ -111,7 +111,7 @@ export function drillView(): View {
       }, 100);
     }
 
-    function ask(info?: { flash?: string }) {
+    function ask(info?: { flash?: Flash }) {
       if (mode === 'set' && results.length >= SET_SIZE) return finish();
       if (mode === 'timed' && remaining <= 0) return finish();
       paused = false;
