@@ -22,7 +22,7 @@ const soundBtn = h('button', {
     app.prefs.sound = !app.prefs.sound;
     app.save();
     paintSound();
-    if (app.prefs.sound) playCorrect(1);
+    if (app.prefs.sound) playCorrect();
   },
 });
 function paintSound() {

@@ -1,6 +1,5 @@
-import { UNLOCK_WINDOW, factSetFor, factStatus, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
-import { FACT_TYPES } from '../core/facts';
-import { playCorrect, playMastered, playUnlock } from './sound';
+import { UNLOCK_WINDOW, factSetFor, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
+import { playCorrect } from './sound';
 import { LEVELS, levelDef } from '../core/generators';
 import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
@@ -103,16 +102,10 @@ export function practiceView(): View {
       problem,
       hint: true,
       record: (p, input) => {
-        const set = FACT_TYPES[p.type];
-        const key = set && p.operands ? set.keyOf(p.operands) : null;
-        const wasMastered = key ? factStatus(app.prog.facts[key]) === 'mastered' : false;
         const res = recordAnswer(app.prog, p, input);
         app.save();
         renderMeter();
-        // Sounds: fanfare for a new level, sparkle for a newly mastered fact, chime for any right answer.
-        if (res.unlocked) playUnlock();
-        else if (key && !wasMastered && factStatus(app.prog.facts[key]) === 'mastered') playMastered();
-        else if (input.correct) playCorrect(app.prog.run);
+        if (input.correct) playCorrect();
         if (res.unlocked) {
           toast(`Level ${res.unlocked} unlocked: ${levelDef(p.skill, res.unlocked).name}`);
           renderControls();

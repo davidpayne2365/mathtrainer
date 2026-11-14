@@ -1,7 +1,6 @@
 /**
- * Reward sounds, synthesized with Web Audio (no audio files, works offline).
- * Soft bell tones: a chime that climbs with your streak, a sparkle when a fact
- * is mastered, and a short fanfare when a level unlocks.
+ * The right-answer chime, synthesized with Web Audio (no audio files, works offline).
+ * One sound only, the same every time.
  */
 import { app } from './app';
 
@@ -54,32 +53,11 @@ function bell(c: AudioContext, freq: number, at: number, dur = 0.6, vol = 0.18):
   }
 }
 
-// C major pentatonic, two octaves: every combination sounds pleasant.
-const SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0];
-
-/** Right answer: a two-note "ding-ding" that climbs as the streak grows. */
-export function playCorrect(streak: number): void {
-  const c = audio();
-  if (!c) return;
-  const i = Math.min(Math.max(streak - 1, 0), SCALE.length - 3) % (SCALE.length - 2);
-  const t = c.currentTime;
-  bell(c, SCALE[i], t, 0.45, 0.14);
-  bell(c, SCALE[i + 2], t + 0.075, 0.7, 0.16);
-}
-
-/** A fact just became mastered: a quick sparkling arpeggio. */
-export function playMastered(): void {
+/** Right answer: the same bright two-note chime every time. */
+export function playCorrect(): void {
   const c = audio();
   if (!c) return;
   const t = c.currentTime;
-  [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((f, k) => bell(c, f, t + k * 0.06, 0.8, 0.13));
-}
-
-/** New level unlocked: a short fanfare ending on a full chord. */
-export function playUnlock(): void {
-  const c = audio();
-  if (!c) return;
-  const t = c.currentTime;
-  [523.25, 659.25, 783.99].forEach((f, k) => bell(c, f, t + k * 0.11, 0.5, 0.15));
-  [523.25, 659.25, 783.99, 1046.5].forEach((f) => bell(c, f, t + 0.4, 1.4, 0.12));
+  bell(c, 783.99, t, 0.45, 0.14); // G5
+  bell(c, 1046.5, t + 0.075, 0.7, 0.16); // C6
 }
