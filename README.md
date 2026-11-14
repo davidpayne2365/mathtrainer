@@ -2,11 +2,12 @@
 
 A mobile-first, offline-capable web app for mastering quick mental math:
 
+- **Facts 1–10, memorized** — every addition fact (1 + 1 to 10 + 10), subtraction fact (2 − 1 to 20 − 10) and times-table fact (1 × 1 to 10 × 10). Each fact is tracked on its own and is mastered after 3 fast, correct answers in a row; shaky facts come back more often until they stick.
 - **3-digit addition** — left to right, biggest place value first (478 + 346 → 778 → 818 → 824), plus round-and-adjust (478 + 199 → 478 + 200 − 1).
 - **3-digit subtraction** — count up through a round number, no borrowing (703 − 468 → 32 + 203 = 235), plus round-and-adjust (625 − 298 → 625 − 300 + 2).
 - **Percentages** — build any percent from anchors 10%, 5%, 1%, 50%, 25%; increase/decrease, real-world problems, percent change and reverse percentages.
 
-After every answer the app shows the "fast way" for that exact problem, step by step.
+A correct answer moves straight on to the next question (the previous problem's fast way is one tap away). A wrong answer stops and shows the fast way for that exact problem, step by step.
 
 ## Sections
 
