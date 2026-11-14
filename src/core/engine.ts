@@ -3,7 +3,8 @@
  * retry scheduling after a miss, and progress statistics. Pure functions over
  * a plain JSON `Progress` object so it is easy to persist and test.
  */
-import { FACTS, LEVELS, TYPES, factKey, factProblem, generateOfType, levelDef, maxLevel } from './generators';
+import { FACT_SETS, FACT_TYPES, type FactSet, type FactSkill } from './facts';
+import { LEVELS, TYPES, factProblem, generateOfType, levelDef, maxLevel } from './generators';
 import { SKILLS, type Problem, type Rng, type Skill } from './types';
 
 export type Outcome = 'ok' | 'slow' | 'wrong';
@@ -46,7 +47,7 @@ export interface FactStat {
 export type FactStatus = 'new' | 'learning' | 'mastered';
 
 export interface Progress {
-  version: 1;
+  version: 2;
   facts: Record<string, FactStat>;
   unlocked: Record<Skill, number>;
   levels: Record<string, LevelStat>;
@@ -69,8 +70,8 @@ const RECENT_FACT = 6;
 
 export function defaultProgress(): Progress {
   return {
-    version: 1,
-    unlocked: { add: 1, sub: 1, pct: 1 },
+    version: 2,
+    unlocked: { add: 1, sub: 1, mul: 1, pct: 1 },
     levels: {},
     types: {},
     facts: {},
@@ -136,9 +137,10 @@ export function recordAnswer(prog: Progress, problem: Problem, input: AnswerInpu
   ts.recent.push(outcome);
   if (ts.recent.length > RECENT_TYPE) ts.recent.splice(0, ts.recent.length - RECENT_TYPE);
 
-  // Per-fact memory (addition facts 1–10).
-  if (problem.operands && type === 'add.fact') {
-    const fs = (prog.facts[factKey(...problem.operands)] ??= { n: 0, recent: [] });
+  // Per-fact memory (facts 1–10).
+  const set = FACT_TYPES[type];
+  if (set && problem.operands) {
+    const fs = (prog.facts[set.keyOf(problem.operands)] ??= { n: 0, recent: [] });
     fs.n++;
     fs.recent.push(outcome);
     if (fs.recent.length > RECENT_FACT) fs.recent.splice(0, fs.recent.length - RECENT_FACT);
@@ -193,7 +195,7 @@ export function nextProblem(prog: Progress, pool: PoolEntry[], rng: Rng = Math.r
   if (dueIdx >= 0) {
     const [r] = prog.retry.splice(dueIdx, 1);
     for (let i = 0; i < 10; i++) {
-      const p = r.type === 'add.fact' ? pickFact(prog, rng, r.level) : generateOfType(r.type, r.level, rng);
+      const p = FACT_TYPES[r.type] ? pickFact(prog, FACT_TYPES[r.type], rng, r.level) : generateOfType(r.type, r.level, rng);
       if (p.prompt !== avoidPrompt) return p;
     }
   }
@@ -215,19 +217,21 @@ export function nextProblem(prog: Progress, pool: PoolEntry[], rng: Rng = Math.r
         break;
       }
     }
-    const p = c.type === 'add.fact' ? pickFact(prog, rng, c.level.level) : generateOfType(c.type, c.level.level, rng);
+    const set = FACT_TYPES[c.type];
+    const p = set ? pickFact(prog, set, rng, c.level.level) : generateOfType(c.type, c.level.level, rng);
     if (p.prompt !== avoidPrompt) return p;
   }
   return generateOfType(cands[0].type, cands[0].level.level, rng);
 }
 
-/** Levels used by Drill for the chosen skills: everything unlocked (skipping the make-10 warm-up once passed). */
+/** Levels used by Drill for the chosen skills: everything unlocked; facts stay in until all are mastered. */
 export function drillPool(prog: Progress, skills: Skill[]): PoolEntry[] {
   const pool: PoolEntry[] = [];
   for (const skill of skills) {
     const top = prog.unlocked[skill];
     // Keep facts in the mix until every one is memorized.
-    const start = skill === 'add' && top > 1 && factSummary(prog).mastered === FACTS.length ? 2 : 1;
+    const set = FACT_SETS[skill as FactSkill];
+    const start = set && top > 1 && factSummary(prog, set).mastered === set.facts.length ? 2 : 1;
     for (let l = start; l <= top; l++) pool.push({ skill, level: l });
   }
   return pool;
@@ -255,23 +259,22 @@ export function factWeight(fs: FactStat | undefined): number {
   return 1 + 4 * wrong + 2 * slow + recency;
 }
 
-/** Choose the next fact, weighted toward ones not yet memorized; random order (8 + 7 or 7 + 8). */
-export function pickFact(prog: Progress, rng: Rng = Math.random, level = 1): Problem {
-  const ws = FACTS.map(([a, b]) => factWeight(prog.facts[factKey(a, b)]));
+/** Choose the next fact, weighted toward ones not yet memorized. */
+export function pickFact(prog: Progress, set: FactSet, rng: Rng = Math.random, level = 1): Problem {
+  const ws = set.facts.map((f) => factWeight(prog.facts[set.keyOf(f)]));
   let r = rng() * ws.reduce((x, y) => x + y, 0);
   let i = 0;
   for (; i < ws.length - 1; i++) {
     r -= ws[i];
     if (r <= 0) break;
   }
-  const [a, b] = FACTS[i];
-  return rng() < 0.5 ? factProblem(a, b, level) : factProblem(b, a, level);
+  return factProblem(set, set.facts[i], rng, level);
 }
 
-export function factSummary(prog: Progress) {
+export function factSummary(prog: Progress, set: FactSet) {
   const counts = { new: 0, learning: 0, mastered: 0 };
-  for (const [a, b] of FACTS) counts[factStatus(prog.facts[factKey(a, b)])]++;
-  return { ...counts, total: FACTS.length };
+  for (const f of set.facts) counts[factStatus(prog.facts[set.keyOf(f)])]++;
+  return { ...counts, total: set.facts.length };
 }
 
 // ---------------------------------------------------------------- statistics
@@ -369,11 +372,31 @@ export function weakest(prog: Progress, limit = 5): WeakSpot[] {
   return spots.slice(0, limit);
 }
 
+/**
+ * v1 → v2: subtraction gained a facts level at the front, so old subtraction
+ * levels move up by one (you keep everything you had unlocked).
+ */
+function migrate(r: Partial<Progress> & { version?: number }): Partial<Progress> {
+  if ((r.version ?? 1) >= 2) return r;
+  const out = { ...r };
+  if (out.unlocked && typeof out.unlocked.sub === 'number') out.unlocked = { ...out.unlocked, sub: out.unlocked.sub + 1 };
+  if (out.levels) {
+    out.levels = Object.fromEntries(
+      Object.entries(out.levels).map(([k, v]) => {
+        const [skill, lvl] = k.split(':');
+        return [skill === 'sub' ? `sub:${Number(lvl) + 1}` : k, v];
+      }),
+    );
+  }
+  if (Array.isArray(out.retry)) out.retry = out.retry.map((x) => (x?.skill === 'sub' ? { ...x, level: x.level + 1 } : x));
+  return out;
+}
+
 /** Merge stored data over defaults, tolerating older or partial shapes. */
 export function normalize(raw: unknown): Progress {
   const base = defaultProgress();
   if (!raw || typeof raw !== 'object') return base;
-  const r = raw as Partial<Progress>;
+  const r = migrate(raw as Partial<Progress> & { version?: number });
   const unlocked = { ...base.unlocked };
   for (const s of SKILLS) {
     const v = r.unlocked?.[s];
@@ -382,7 +405,7 @@ export function normalize(raw: unknown): Progress {
   return {
     ...base,
     ...r,
-    version: 1,
+    version: 2,
     unlocked,
     levels: r.levels ?? {},
     types: r.types ?? {},

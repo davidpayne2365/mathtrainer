@@ -88,6 +88,68 @@ export function factSteps(a: number, b: number): Step[] {
   return [{ text: `${a} + ${b} = ${sum}`, value: sum }];
 }
 
+/** Subtraction fact c − b: count up from b through 10 (the same move as 3-digit count-up). */
+export function subFactSteps(c: number, b: number): Step[] {
+  const d = c - b;
+  if (c > 10 && b < 10) {
+    return [
+      { text: `Count up ${b} → 10: +${10 - b}`, value: 10 - b },
+      { text: `10 → ${c}: +${c - 10}`, value: c - 10 },
+      { text: `So ${c} − ${b} = ${d}`, value: d },
+    ];
+  }
+  return [
+    { text: `Think addition: ${b} + ? = ${c}` },
+    { text: `So ${c} − ${b} = ${d}`, value: d },
+  ];
+}
+
+/** Which factor to treat as the multiplier: the one with the easiest anchor. */
+const MUL_EASE = [10, 1, 2, 5, 9, 4, 3, 6, 8, 7];
+
+/** Times-table fact a × b, rebuilt from anchors (×10, ×2, ×5) as a memory aid. */
+export function mulFactSteps(a: number, b: number): Step[] {
+  const m = MUL_EASE.find((x) => x === a || x === b)!;
+  const n = m === a ? b : a;
+  const p = a * b;
+  const s = (text: string, value?: number): Step => ({ text, value });
+  const out: Step[] = [];
+  switch (m) {
+    case 10:
+      out.push(s(`${n} × 10: put a zero on the end`, p));
+      break;
+    case 1:
+      out.push(s(`Anything × 1 is itself`, p));
+      break;
+    case 2:
+      out.push(s(`× 2 is double: double ${n}`, p));
+      break;
+    case 5:
+      out.push(s(`${n} × 10 = ${n * 10}`, n * 10), s(`× 5 is half of that`, p));
+      break;
+    case 9:
+      out.push(s(`${n} × 10 = ${n * 10}`, n * 10), s(`× 9 is one ${n} less: ${n * 10} − ${n}`, p));
+      break;
+    case 4:
+      out.push(s(`Double ${n} = ${n * 2}`, n * 2), s(`Double again = ${n * 4}`, p));
+      break;
+    case 3:
+      out.push(s(`Double ${n} = ${n * 2}`, n * 2), s(`Plus one more ${n}: ${n * 2} + ${n}`, p));
+      break;
+    case 6:
+      out.push(s(`${n} × 5 = ${n * 5}  (half of ${n * 10})`, n * 5), s(`Plus one more ${n}: ${n * 5} + ${n}`, p));
+      break;
+    case 8:
+      out.push(s(`Double ${n} = ${n * 2}`, n * 2), s(`Double again = ${n * 4}`, n * 4), s(`Double again = ${n * 8}`, p));
+      break;
+    case 7:
+      out.push(s(`${n} × 5 = ${n * 5}  (half of ${n * 10})`, n * 5), s(`${n} × 2 = ${n * 2}`, n * 2), s(`${n * 5} + ${n * 2}`, p));
+      break;
+  }
+  out.push(s(`So ${a} × ${b} = ${p}`, p));
+  return out;
+}
+
 /** The fast way for a + b. */
 export function addSteps(a: number, b: number): Step[] {
   if (a < 10 && b < 10 && a + b > 10) return make10Steps(a, b);

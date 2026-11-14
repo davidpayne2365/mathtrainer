@@ -6,7 +6,6 @@ import type { Problem, Rng, Skill, Step } from './types';
 import {
   addSteps,
   changeBySteps,
-  factSteps,
   nearRoundUp,
   pctOfSteps,
   percentChangeSteps,
@@ -14,6 +13,7 @@ import {
   subSteps,
   swapSteps,
 } from './methods';
+import { FACT_SETS, type FactSet, type Pair } from './facts';
 import { clean, fmt, int, isHalfClean, isWhole, money, multiple, pick, uid } from './util';
 
 interface Draft {
@@ -50,20 +50,17 @@ const chance = (rng: Rng, p: number) => rng() < p;
 
 // ------------------------------------------------------------------ addition
 
-/** Every addition fact from 1 + 1 to 10 + 10, counting a + b and b + a as one fact. */
-export const FACTS: [number, number][] = [];
-for (let a = 1; a <= 10; a++) for (let b = a; b <= 10; b++) FACTS.push([a, b]);
-
-export const factKey = (a: number, b: number) => `${Math.min(a, b)}+${Math.max(a, b)}`;
-
-function factDraft(a: number, b: number): Draft {
-  return { prompt: `${a} + ${b}`, answer: a + b, steps: factSteps(a, b), operands: [a, b] };
+/** A specific fact as a problem. Order-free facts get a random display order unless `rng` always returns < 0.5. */
+export function factProblem(set: FactSet, f: Pair, rng: Rng = Math.random, level = 1): Problem {
+  return { id: uid(), skill: set.skill, level, type: set.type, ...set.make(f, rng) };
 }
 
-/** A specific fact as a problem (order as given). */
-export function factProblem(a: number, b: number, level = 1): Problem {
-  return { id: uid(), skill: 'add', level, type: 'add.fact', ...factDraft(a, b) };
-}
+const factTypes: TypeDef[] = Object.values(FACT_SETS).map((set) => ({
+  id: set.type,
+  skill: set.skill,
+  label: set.title,
+  gen: (rng: Rng) => set.make(pick(rng, set.facts), rng),
+}));
 
 function addDraft(a: number, b: number): Draft {
   return { prompt: `${a} + ${b}`, answer: a + b, steps: addSteps(a, b) };
@@ -75,12 +72,6 @@ function addCarries(a: number, b: number): boolean {
 }
 
 const addTypes: TypeDef[] = [
-  {
-    id: 'add.fact',
-    skill: 'add',
-    label: 'Addition facts 1–10',
-    gen: (rng) => factDraft(int(rng, 1, 10), int(rng, 1, 10)),
-  },
   {
     id: 'add.32',
     skill: 'add',
@@ -380,7 +371,7 @@ const pctTypes: TypeDef[] = [
 ];
 
 export const TYPES: Record<string, TypeDef> = Object.fromEntries(
-  [...addTypes, ...subTypes, ...pctTypes].map((t) => [t.id, t]),
+  [...factTypes, ...addTypes, ...subTypes, ...pctTypes].map((t) => [t.id, t]),
 );
 
 export const LEVELS: Record<Skill, LevelDef[]> = {
@@ -392,11 +383,15 @@ export const LEVELS: Record<Skill, LevelDef[]> = {
     { skill: 'add', level: 5, name: 'Mixed mastery', blurb: 'Pick the fastest move for each problem.', targetSec: 7, types: ['add.32', 'add.33', 'add.33', 'add.round3', 'add.round2'] },
   ],
   sub: [
-    { skill: 'sub', level: 1, name: 'Count up from round numbers', blurb: '500 − 268: 268 → 300 → 500.', targetSec: 7, types: ['sub.fromRound'] },
-    { skill: 'sub', level: 2, name: '3-digit − 2-digit', blurb: '423 − 68: 68 → 100 → 423.', targetSec: 7, types: ['sub.32'] },
-    { skill: 'sub', level: 3, name: '3-digit − 3-digit', blurb: '703 − 468: 468 → 500 → 703.', targetSec: 9, types: ['sub.33'] },
-    { skill: 'sub', level: 4, name: 'Round & adjust', blurb: '625 − 298 → 625 − 300 + 2.', targetSec: 6, types: ['sub.round3', 'sub.round2'] },
-    { skill: 'sub', level: 5, name: 'Mixed mastery', blurb: 'Count up or round — whichever is faster.', targetSec: 8, types: ['sub.fromRound', 'sub.32', 'sub.33', 'sub.33', 'sub.round3', 'sub.round2'] },
+    { skill: 'sub', level: 1, name: 'Facts 1–10', blurb: 'Memorize every fact from 2 − 1 to 20 − 10. Instant recall, no working out.', targetSec: 2, types: ['sub.fact'] },
+    { skill: 'sub', level: 2, name: 'Count up from round numbers', blurb: '500 − 268: 268 → 300 → 500.', targetSec: 7, types: ['sub.fromRound'] },
+    { skill: 'sub', level: 3, name: '3-digit − 2-digit', blurb: '423 − 68: 68 → 100 → 423.', targetSec: 7, types: ['sub.32'] },
+    { skill: 'sub', level: 4, name: '3-digit − 3-digit', blurb: '703 − 468: 468 → 500 → 703.', targetSec: 9, types: ['sub.33'] },
+    { skill: 'sub', level: 5, name: 'Round & adjust', blurb: '625 − 298 → 625 − 300 + 2.', targetSec: 6, types: ['sub.round3', 'sub.round2'] },
+    { skill: 'sub', level: 6, name: 'Mixed mastery', blurb: 'Count up or round — whichever is faster.', targetSec: 8, types: ['sub.fromRound', 'sub.32', 'sub.33', 'sub.33', 'sub.round3', 'sub.round2'] },
+  ],
+  mul: [
+    { skill: 'mul', level: 1, name: 'Times tables 1–10', blurb: 'Memorize every fact from 1 × 1 to 10 × 10. Instant recall, no working out.', targetSec: 2.5, types: ['mul.fact'] },
   ],
   pct: [
     { skill: 'pct', level: 1, name: 'Anchors', blurb: '10%, 50%, 25%, 20%, 5%, 1% of clean numbers.', targetSec: 5, types: ['pct.anchor'] },

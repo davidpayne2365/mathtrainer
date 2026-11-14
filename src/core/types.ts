@@ -1,10 +1,11 @@
-export type Skill = 'add' | 'sub' | 'pct';
+export type Skill = 'add' | 'sub' | 'mul' | 'pct';
 
-export const SKILLS: Skill[] = ['add', 'sub', 'pct'];
+export const SKILLS: Skill[] = ['add', 'sub', 'mul', 'pct'];
 
 export const SKILL_NAMES: Record<Skill, string> = {
   add: 'Addition',
   sub: 'Subtraction',
+  mul: 'Multiplication',
   pct: 'Percentages',
 };
 

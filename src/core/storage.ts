@@ -1,4 +1,5 @@
 import { defaultProgress, normalize, type Progress } from './engine';
+import type { Skill } from './types';
 
 const KEY = 'mathtrainer.progress.v1';
 const PREFS_KEY = 'mathtrainer.prefs.v1';
@@ -32,7 +33,7 @@ export type Theme = 'system' | 'light' | 'dark';
 
 export interface Prefs {
   theme: Theme;
-  practiceSkill: 'add' | 'sub' | 'pct';
+  practiceSkill: Skill;
   practiceLevel: Record<string, number>;
 }
 

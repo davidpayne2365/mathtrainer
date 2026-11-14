@@ -13,7 +13,15 @@ import {
   typeWeight,
   weakest,
 } from '../src/core/engine';
-import { FACTS, factProblem, generate, generateOfType } from '../src/core/generators';
+import { FACT_SETS, type Pair } from '../src/core/facts';
+import { factProblem, generate, generateOfType } from '../src/core/generators';
+
+const ADD = FACT_SETS.add;
+const keepOrder = () => 0.1; // rng < 0.5 keeps the order as written
+const fact = (a: number, b: number) => factProblem(ADD, [a, b], keepOrder);
+const masterAll = (prog: ReturnType<typeof defaultProgress>, facts: Pair[] = ADD.facts) => {
+  for (const f of facts) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(ADD, f, keepOrder), { correct: true, ms: 800 });
+};
 import { mulberry32 } from '../src/core/util';
 
 const rng = mulberry32(42);
@@ -88,8 +96,8 @@ describe('adaptive selection', () => {
 
   it('drill pool covers unlocked levels and skips facts once all are mastered', () => {
     const prog = defaultProgress();
-    for (const [a, b] of FACTS) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(a, b), { correct: true, ms: 800 });
-    expect(factSummary(prog).mastered).toBe(55);
+    masterAll(prog);
+    expect(factSummary(prog, ADD).mastered).toBe(55);
     prog.unlocked.add = 3;
     expect(drillPool(prog, ['add', 'pct'])).toEqual([
       { skill: 'add', level: 2 },
@@ -102,22 +110,22 @@ describe('adaptive selection', () => {
 describe('facts 1–10', () => {
   it('masters a fact after 3 fast correct answers in a row, either order', () => {
     const prog = defaultProgress();
-    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 900 });
-    recordAnswer(prog, factProblem(7, 8), { correct: true, ms: 900 });
+    recordAnswer(prog, fact(8, 7), { correct: true, ms: 900 });
+    recordAnswer(prog, fact(7, 8), { correct: true, ms: 900 });
     expect(factStatus(prog.facts['7+8'])).toBe('learning');
-    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 900 });
+    recordAnswer(prog, fact(8, 7), { correct: true, ms: 900 });
     expect(factStatus(prog.facts['7+8'])).toBe('mastered');
-    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 5000 }); // slow = not instant
+    recordAnswer(prog, fact(8, 7), { correct: true, ms: 5000 }); // slow = not instant
     expect(factStatus(prog.facts['7+8'])).toBe('learning');
   });
 
   it('picks missed facts far more often than mastered ones', () => {
     const prog = defaultProgress();
-    for (const [a, b] of FACTS) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(a, b), { correct: true, ms: 800 });
-    recordAnswer(prog, factProblem(6, 9), { correct: false, ms: 3000 });
+    masterAll(prog);
+    recordAnswer(prog, fact(6, 9), { correct: false, ms: 3000 });
     const r = mulberry32(5);
     let hits = 0;
-    for (let i = 0; i < 2000; i++) if (pickFact(prog, r).operands!.slice().sort((x, y) => x - y).join() === '6,9') hits++;
+    for (let i = 0; i < 2000; i++) if (pickFact(prog, ADD, r).operands!.slice().sort((x, y) => x - y).join() === '6,9') hits++;
     // 1 of 55 facts, weighted 5 vs 0.25 for the rest: expect roughly 2000 * 5 / 18.5 ≈ 540
     expect(hits).toBeGreaterThan(300);
   });
@@ -151,5 +159,22 @@ describe('stats', () => {
   it('normalizes junk storage', () => {
     expect(normalize(null).unlocked.add).toBe(1);
     expect(normalize({ unlocked: { add: 99 } }).unlocked.add).toBe(5);
+  });
+});
+
+describe('migration from v1', () => {
+  it('shifts subtraction levels up one to make room for facts', () => {
+    const old = {
+      version: 1,
+      unlocked: { add: 2, sub: 3, pct: 1 },
+      levels: { 'sub:3': { n: 5, correct: 5, recent: [true] }, 'add:2': { n: 1, correct: 1, recent: [true] } },
+      retry: [{ type: 'sub.33', skill: 'sub', level: 3, due: 4 }],
+    };
+    const p = normalize(old);
+    expect(p.version).toBe(2);
+    expect(p.unlocked).toEqual({ add: 2, sub: 4, mul: 1, pct: 1 });
+    expect(Object.keys(p.levels).sort()).toEqual(['add:2', 'sub:4']);
+    expect(p.retry[0].level).toBe(4);
+    expect(normalize(p).unlocked.sub).toBe(4); // idempotent once migrated
   });
 });
