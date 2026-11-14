@@ -481,6 +481,32 @@ a {
   display: grid;
   place-items: center;
 }
+.steps .math {
+  font-weight: 600;
+}
+.steps .why {
+  margin-top: 2px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.steps li.final .why {
+  font-weight: 400;
+}
+.idea {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-radius: 0 10px 10px 0;
+  font-size: 0.98rem;
+}
+.prev-lesson {
+  text-align: left;
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
 .steps li.final {
   font-weight: 700;
   background: var(--right-bg);
@@ -607,18 +633,6 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-}
-.flash-steps {
-  text-align: left;
-  font-weight: 400;
-  color: var(--text);
-}
-.flash-steps summary {
-  text-align: center;
-  color: var(--accent);
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 4px 0;
 }
 .facts {
   width: 100%;

@@ -29,15 +29,23 @@ export interface Flash {
   text: string;
   slow: boolean;
   steps: Step[];
+  /** Show the walkthrough open under the next question (it was worth teaching). */
+  teach: boolean;
 }
 
 function flashLine(f: Flash): HTMLElement {
-  return h(
-    'div',
-    { class: 'flash' + (f.slow ? ' slow' : '') },
-    h('div', { class: 'flash-text' }, icon('check', 16), ' ', f.text),
-    f.steps.length > 1 ? h('details', { class: 'flash-steps' }, h('summary', null, 'See the fast way'), stepList(f.steps)) : null,
-  );
+  return h('div', { class: 'flash' + (f.slow ? ' slow' : '') }, h('div', { class: 'flash-text' }, icon('check', 16), ' ', f.text));
+}
+
+/** The previous problem's walkthrough, shown under the current question. */
+function prevLesson(f: Flash): HTMLElement {
+  return h('section', { class: 'prev-lesson' }, h('div', { class: 'review-title' }, `Last one: ${f.text.split(' · ')[0]}`), lesson(f.steps));
+}
+
+/** A full walkthrough: the idea, then each step with its explanation. */
+export function lesson(steps: Step[]): HTMLElement {
+  const intro = steps[0]?.intro;
+  return h('div', { class: 'lesson' }, intro ? h('p', { class: 'idea' }, intro) : null, stepList(steps));
 }
 
 export interface QuestionHandle {
@@ -51,7 +59,9 @@ export function stepList(steps: Step[], upto = steps.length): HTMLElement {
   return h(
     'ol',
     { class: 'steps' },
-    steps.slice(0, upto).map((s, i) => h('li', { class: i === steps.length - 1 ? 'final' : '' }, s.text)),
+    steps.slice(0, upto).map((s, i) =>
+      h('li', { class: i === steps.length - 1 ? 'final' : '' }, h('div', { class: 'math' }, s.text), h('div', { class: 'why' }, s.why)),
+    ),
   );
 }
 
@@ -119,14 +129,16 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     hintBox,
     actions,
     review,
+    opts.flash?.teach ? prevLesson(opts.flash) : null,
   );
 
   function showHint() {
-    hintShown = Math.min(hintShown + 1, problem.steps.length);
-    hintBox.replaceChildren(stepList(problem.steps, hintShown));
-    hintBtn.textContent = hintShown < problem.steps.length ? `Next step (${hintShown}/${problem.steps.length})` : 'All steps shown';
-    hintBtn.disabled = hintShown >= problem.steps.length;
-    input.focus();
+    hintShown = problem.steps.length;
+    hintBox.replaceChildren(h('div', { class: 'review-title' }, 'How to do it'), lesson(problem.steps));
+    hintBtn.textContent = 'Method shown below';
+    hintBtn.disabled = true;
+    el.querySelector('.prev-lesson')?.remove();
+    input.focus({ preventScroll: true });
   }
 
   function onInput() {
@@ -158,7 +170,13 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
       const note = hintShown > 0 ? ' · with hint' : slow ? ` · slow (aim ${level.targetSec}s)` : '';
       opts.onReview?.({ ...res, correct, ms });
       opts.onNext({
-        flash: { text: `${problem.prompt} = ${answerLabel(problem)} · ${(ms / 1000).toFixed(1)}s${note}`, slow: slow, steps: problem.steps },
+        flash: {
+          text: `${problem.prompt} = ${answerLabel(problem)} · ${(ms / 1000).toFixed(1)}s${note}`,
+          slow,
+          steps: problem.steps,
+          // Facts answered fast need no lesson (keep the rapid-fire flow); everything else gets taught.
+          teach: !isFactType(problem.type) || slow,
+        },
       });
       return;
     }
@@ -183,7 +201,7 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     hintBox.replaceChildren();
     actions.replaceChildren();
     const title = isFactType(problem.type) ? 'Lock it in' : 'The fast way';
-    review.replaceChildren(h('div', { class: 'review-title' }, title), stepList(problem.steps), nextBtn);
+    review.replaceChildren(h('div', { class: 'review-title' }, title), lesson(problem.steps), nextBtn);
     opts.onReview?.({ ...res, correct, ms });
     nextBtn.focus({ preventScroll: true });
     requestAnimationFrame(() => nextBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
