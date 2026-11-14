@@ -1,5 +1,5 @@
 import { LEVELS, generate } from '../core/generators';
-import { addSteps, changeBySteps, pctOfSteps, percentChangeSteps, reverseSteps, subSteps, swapSteps } from '../core/methods';
+import { addSteps, changeBySteps, factSteps, pctOfSteps, percentChangeSteps, reverseSteps, subSteps, swapSteps } from '../core/methods';
 import { SKILLS, SKILL_NAMES, type Skill, type Step } from '../core/types';
 import { fmt, money } from '../core/util';
 import { app, navigate, type View } from './app';
@@ -42,9 +42,12 @@ const LESSONS: Record<Skill, Lesson> = {
         examples: [ex('478 + 199', addSteps(478, 199)), ex('356 + 98', addSteps(356, 98))],
       },
       {
-        title: 'Warm-up: make 10',
-        body: ['Crossing a ten is where most slips happen. Top up to 10 first, then add what is left. Drill level 1 until these are instant.'],
-        examples: [ex('8 + 7', addSteps(8, 7)), ex('6 + 9', addSteps(6, 9))],
+        title: 'Foundation: memorize facts 1–10',
+        body: [
+          'Every step above leans on single-digit facts like 8 + 7 = 15. These should be pure memory — instant, no working out. Level 1 drills all 55 facts from 1 + 1 to 10 + 10, brings back the ones you miss or hesitate on, and marks each one mastered after 3 fast, correct answers in a row.',
+          'While a fact is still shaky, use make 10 as a memory aid: top up to 10, then add what is left. Once you know it, just say the answer.',
+        ],
+        examples: [ex('8 + 7', factSteps(8, 7)), ex('6 + 9', factSteps(6, 9))],
       },
     ],
   },

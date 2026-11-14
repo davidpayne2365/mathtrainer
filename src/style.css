@@ -706,3 +706,57 @@ a {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+/* ---------- facts ---------- */
+.flash {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--right);
+}
+.facts {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  table-layout: fixed;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.facts th {
+  color: var(--muted);
+  font-weight: 600;
+}
+.facts td {
+  border-radius: 6px;
+  padding: 6px 0;
+  font-weight: 600;
+}
+.facts td.new,
+.legend .new {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.facts td.learning,
+.legend .learning {
+  background: var(--slow-bg);
+  color: var(--slow);
+}
+.facts td.mastered,
+.legend .mastered {
+  background: var(--right-bg);
+  color: var(--right);
+}
+.legend {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 0.8rem;
+}
+.legend span {
+  padding: 3px 10px;
+  border-radius: 99px;
+}

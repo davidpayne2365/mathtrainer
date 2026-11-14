@@ -1,4 +1,5 @@
-import { UNLOCK_WINDOW, defaultProgress, levelProgress, skillTotals, streak, trend, weakest, type TrendPoint } from '../core/engine';
+import { FACT_MASTERY_RUN, UNLOCK_WINDOW, defaultProgress, factStatus, factSummary, levelProgress, skillTotals, streak, trend, weakest, type TrendPoint } from '../core/engine';
+import { factKey } from '../core/generators';
 import { LEVELS, levelDef } from '../core/generators';
 import { clearProgress, type Theme } from '../core/storage';
 import { SKILLS, SKILL_NAMES, type Skill } from '../core/types';
@@ -35,6 +36,37 @@ function sparkline(points: (number | null)[], max: number, label: string, invert
       ? svg('svg', { viewBox: `-3 0 ${W + 6} ${H}`, width: '100%', height: H, role: 'img', 'aria-label': label }, svg('path', { d }), ...dots)
       : h('div', { class: 'spark-empty' }, 'No data yet'),
     h('figcaption', null, label),
+  );
+}
+
+/** 10×10 addition table colored by how well each fact is memorized. */
+function factGrid(): HTMLElement {
+  const f = factSummary(app.prog);
+  const head = h('tr', null, h('th', null, '+'), ...Array.from({ length: 10 }, (_, i) => h('th', null, String(i + 1))));
+  const rows = Array.from({ length: 10 }, (_, r) =>
+    h(
+      'tr',
+      null,
+      h('th', null, String(r + 1)),
+      ...Array.from({ length: 10 }, (_, c) => {
+        const status = factStatus(app.prog.facts[factKey(r + 1, c + 1)]);
+        return h('td', { class: status, title: `${r + 1} + ${c + 1} = ${r + c + 2} (${status})` }, String(r + c + 2));
+      }),
+    ),
+  );
+  return h(
+    'section',
+    { class: 'card' },
+    h('div', { class: 'card-head' }, h('h2', null, 'Addition facts 1–10'), h('span', { class: 'pill' }, `${f.mastered}/${f.total} mastered`)),
+    h('p', { class: 'muted' }, `A fact is mastered after ${FACT_MASTERY_RUN} fast, correct answers in a row. 8 + 7 and 7 + 8 count as one fact.`),
+    h('table', { class: 'facts' }, head, ...rows),
+    h(
+      'div',
+      { class: 'legend' },
+      h('span', { class: 'mastered' }, `Mastered ${f.mastered}`),
+      h('span', { class: 'learning' }, `Learning ${f.learning}`),
+      h('span', { class: 'new' }, `Not seen ${f.new}`),
+    ),
   );
 }
 
@@ -104,6 +136,7 @@ export function progressView(): View {
         h('div', null, h('b', null, String(prog.run)), h('span', null, 'correct in a row')),
         h('div', null, h('b', null, String(prog.bestRun)), h('span', null, 'best run')),
       ),
+      factGrid(),
       ...SKILLS.map(skillCard),
       h(
         'section',

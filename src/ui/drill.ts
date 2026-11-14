@@ -111,7 +111,7 @@ export function drillView(): View {
       }, 100);
     }
 
-    function ask() {
+    function ask(info?: { flash?: string }) {
       if (mode === 'set' && results.length >= SET_SIZE) return finish();
       if (mode === 'timed' && remaining <= 0) return finish();
       paused = false;
@@ -133,6 +133,7 @@ export function drillView(): View {
           paint();
         },
         onNext: ask,
+        flash: info?.flash,
         nextLabel: mode === 'set' && results.length >= SET_SIZE - 1 ? 'See results' : 'Next',
       });
       stage.replaceChildren(q.el);

@@ -1,4 +1,4 @@
-import { UNLOCK_WINDOW, levelProgress, nextProblem, recordAnswer } from '../core/engine';
+import { UNLOCK_WINDOW, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
 import { LEVELS, levelDef } from '../core/generators';
 import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
@@ -83,10 +83,16 @@ export function practiceView(): View {
         h('i', { style: { left: '90%' } }),
       ),
       h('div', { class: 'meter-sub' }, `Last ${lp.recentN}: ${lp.recentCorrect} right${need}`),
+      ...(skill === 'add' && level === 1 ? [factsLine()] : []),
     );
   }
 
-  function ask() {
+  function factsLine() {
+    const f = factSummary(app.prog);
+    return h('div', { class: 'meter-sub facts-line' }, `Facts mastered: ${f.mastered}/${f.total} · `, h('a', { href: '#/progress' }, 'see grid'));
+  }
+
+  function ask(info?: { flash?: string }) {
     const problem = nextProblem(app.prog, [{ skill, level }], Math.random, last?.prompt);
     last = problem;
     const q = renderQuestion({
@@ -103,6 +109,7 @@ export function practiceView(): View {
         return res;
       },
       onNext: ask,
+      flash: info?.flash,
     });
     stage.replaceChildren(q.el);
     q.focus();

@@ -15,7 +15,9 @@ export interface QuestionOpts {
   /** Persist the answer; returns the outcome. */
   record: (p: Problem, input: AnswerInput) => AnswerResult;
   /** Called synchronously from the Next tap so the next input can grab focus (keeps the phone keyboard up). */
-  onNext: () => void;
+  onNext: (info?: { flash?: string }) => void;
+  /** Short confirmation of the previous answer, shown above the prompt (fact rapid-fire). */
+  flash?: string;
   /** Fired when the walkthrough is shown (Drill pauses its clock). */
   onReview?: (res: AnswerResult & { correct: boolean; ms: number }) => void;
   nextLabel?: string;
@@ -93,6 +95,7 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     'section',
     { class: 'question' },
     h('div', { class: 'qmeta' }, `${level.name}`),
+    opts.flash ? h('div', { class: 'flash' }, icon('check', 16), ' ', opts.flash) : null,
     h('div', { class: 'prompt' + (problem.prompt.length > 24 ? ' wordy' : '') }, problem.prompt),
     field,
     status,
@@ -131,6 +134,14 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     const correct = !gaveUp && raw !== '' && Math.abs(value - problem.answer) < 1e-9;
     const res = opts.record(problem, { correct, ms, hinted: hintShown > 0 });
 
+    // Facts are about instant recall: a fast correct answer goes straight to the next one,
+    // still inside the typing event so the phone keyboard stays up.
+    if (problem.type === 'add.fact' && res.outcome === 'ok') {
+      opts.onReview?.({ ...res, correct, ms });
+      opts.onNext({ flash: `${problem.prompt} = ${answerLabel(problem)} · ${(ms / 1000).toFixed(1)}s` });
+      return;
+    }
+
     input.readOnly = true;
     input.blur();
     el.classList.add(correct ? (res.outcome === 'slow' ? 'is-slow' : 'is-right') : 'is-wrong');
@@ -150,7 +161,8 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     const nextBtn = h('button', { class: 'btn primary big', type: 'button', onclick: () => opts.onNext() }, opts.nextLabel ?? 'Next');
     hintBox.replaceChildren();
     actions.replaceChildren();
-    review.replaceChildren(h('div', { class: 'review-title' }, 'The fast way'), stepList(problem.steps), nextBtn);
+    const title = problem.type === 'add.fact' ? 'Lock it in' : 'The fast way';
+    review.replaceChildren(h('div', { class: 'review-title' }, title), stepList(problem.steps), nextBtn);
     opts.onReview?.({ ...res, correct, ms });
     nextBtn.focus({ preventScroll: true });
     requestAnimationFrame(() => nextBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
