@@ -3,6 +3,9 @@ import {
   RETRY_GAP,
   defaultProgress,
   drillPool,
+  factStatus,
+  factSummary,
+  pickFact,
   nextProblem,
   normalize,
   recordAnswer,
@@ -10,7 +13,7 @@ import {
   typeWeight,
   weakest,
 } from '../src/core/engine';
-import { generate, generateOfType } from '../src/core/generators';
+import { FACTS, factProblem, generate, generateOfType } from '../src/core/generators';
 import { mulberry32 } from '../src/core/util';
 
 const rng = mulberry32(42);
@@ -77,14 +80,46 @@ describe('adaptive selection', () => {
     expect(prog.retry).toHaveLength(0);
   });
 
-  it('drill pool covers unlocked levels and skips the passed warm-up', () => {
+  it('drill pool keeps facts in until all are mastered', () => {
     const prog = defaultProgress();
+    prog.unlocked.add = 2;
+    expect(drillPool(prog, ['add'])[0]).toEqual({ skill: 'add', level: 1 });
+  });
+
+  it('drill pool covers unlocked levels and skips facts once all are mastered', () => {
+    const prog = defaultProgress();
+    for (const [a, b] of FACTS) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(a, b), { correct: true, ms: 800 });
+    expect(factSummary(prog).mastered).toBe(55);
     prog.unlocked.add = 3;
     expect(drillPool(prog, ['add', 'pct'])).toEqual([
       { skill: 'add', level: 2 },
       { skill: 'add', level: 3 },
       { skill: 'pct', level: 1 },
     ]);
+  });
+});
+
+describe('facts 1–10', () => {
+  it('masters a fact after 3 fast correct answers in a row, either order', () => {
+    const prog = defaultProgress();
+    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 900 });
+    recordAnswer(prog, factProblem(7, 8), { correct: true, ms: 900 });
+    expect(factStatus(prog.facts['7+8'])).toBe('learning');
+    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 900 });
+    expect(factStatus(prog.facts['7+8'])).toBe('mastered');
+    recordAnswer(prog, factProblem(8, 7), { correct: true, ms: 5000 }); // slow = not instant
+    expect(factStatus(prog.facts['7+8'])).toBe('learning');
+  });
+
+  it('picks missed facts far more often than mastered ones', () => {
+    const prog = defaultProgress();
+    for (const [a, b] of FACTS) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(a, b), { correct: true, ms: 800 });
+    recordAnswer(prog, factProblem(6, 9), { correct: false, ms: 3000 });
+    const r = mulberry32(5);
+    let hits = 0;
+    for (let i = 0; i < 2000; i++) if (pickFact(prog, r).operands!.slice().sort((x, y) => x - y).join() === '6,9') hits++;
+    // 1 of 55 facts, weighted 5 vs 0.25 for the rest: expect roughly 2000 * 5 / 18.5 ≈ 540
+    expect(hits).toBeGreaterThan(300);
   });
 });
 

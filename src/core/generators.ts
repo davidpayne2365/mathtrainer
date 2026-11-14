@@ -6,6 +6,7 @@ import type { Problem, Rng, Skill, Step } from './types';
 import {
   addSteps,
   changeBySteps,
+  factSteps,
   nearRoundUp,
   pctOfSteps,
   percentChangeSteps,
@@ -21,6 +22,7 @@ interface Draft {
   steps: Step[];
   prefix?: string;
   suffix?: string;
+  operands?: [number, number];
 }
 
 export interface TypeDef {
@@ -48,6 +50,21 @@ const chance = (rng: Rng, p: number) => rng() < p;
 
 // ------------------------------------------------------------------ addition
 
+/** Every addition fact from 1 + 1 to 10 + 10, counting a + b and b + a as one fact. */
+export const FACTS: [number, number][] = [];
+for (let a = 1; a <= 10; a++) for (let b = a; b <= 10; b++) FACTS.push([a, b]);
+
+export const factKey = (a: number, b: number) => `${Math.min(a, b)}+${Math.max(a, b)}`;
+
+function factDraft(a: number, b: number): Draft {
+  return { prompt: `${a} + ${b}`, answer: a + b, steps: factSteps(a, b), operands: [a, b] };
+}
+
+/** A specific fact as a problem (order as given). */
+export function factProblem(a: number, b: number, level = 1): Problem {
+  return { id: uid(), skill: 'add', level, type: 'add.fact', ...factDraft(a, b) };
+}
+
 function addDraft(a: number, b: number): Draft {
   return { prompt: `${a} + ${b}`, answer: a + b, steps: addSteps(a, b) };
 }
@@ -59,14 +76,10 @@ function addCarries(a: number, b: number): boolean {
 
 const addTypes: TypeDef[] = [
   {
-    id: 'add.make10',
+    id: 'add.fact',
     skill: 'add',
-    label: 'Make-10 pairs',
-    gen: (rng) => {
-      const a = int(rng, 2, 9);
-      const b = int(rng, 2, 9);
-      return a + b > 10 ? addDraft(a, b) : null;
-    },
+    label: 'Addition facts 1–10',
+    gen: (rng) => factDraft(int(rng, 1, 10), int(rng, 1, 10)),
   },
   {
     id: 'add.32',
@@ -372,7 +385,7 @@ export const TYPES: Record<string, TypeDef> = Object.fromEntries(
 
 export const LEVELS: Record<Skill, LevelDef[]> = {
   add: [
-    { skill: 'add', level: 1, name: 'Warm-up: make 10', blurb: '8 + 7 → 8 + 2 + 5. Get these instant.', targetSec: 3, types: ['add.make10'] },
+    { skill: 'add', level: 1, name: 'Facts 1–10', blurb: 'Memorize every fact from 1 + 1 to 10 + 10. Instant recall, no working out.', targetSec: 2, types: ['add.fact'] },
     { skill: 'add', level: 2, name: '3-digit + 2-digit', blurb: 'Left to right: tens, then ones.', targetSec: 6, types: ['add.32'] },
     { skill: 'add', level: 3, name: '3-digit + 3-digit', blurb: 'Hundreds, tens, ones — keep a running total.', targetSec: 8, types: ['add.33'] },
     { skill: 'add', level: 4, name: 'Round & adjust', blurb: '478 + 199 → 478 + 200 − 1.', targetSec: 6, types: ['add.round3', 'add.round2'] },

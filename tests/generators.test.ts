@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEVELS, TYPES, generate, generateOfType } from '../src/core/generators';
+import { FACTS, LEVELS, TYPES, factProblem, generate, generateOfType } from '../src/core/generators';
 import { SKILLS, type Problem } from '../src/core/types';
 import { isHalfClean, isWhole, mulberry32 } from '../src/core/util';
 
@@ -15,7 +15,7 @@ function solve(p: Problem): number | null {
   const nums = (p.prompt.replace(/,/g, '').match(/\d+(\.\d+)?/g) ?? []).map(Number);
   const [x, y] = nums;
   switch (p.type) {
-    case 'add.make10':
+    case 'add.fact':
     case 'add.32':
     case 'add.33':
     case 'add.round3':
@@ -120,10 +120,24 @@ describe('addition rules', () => {
     }
   });
 
-  it('make-10 pairs sum to more than 10', () => {
-    for (const p of sample('add.make10')) {
-      expect(p.answer).toBeGreaterThan(10);
-      expect(p.answer).toBeLessThanOrEqual(18);
+  it('facts use 1–10 + 1–10 and cover all 55 facts', () => {
+    const seen = new Set<string>();
+    for (const p of sample('add.fact')) {
+      const [a, b] = p.operands!;
+      expect(a).toBeGreaterThanOrEqual(1);
+      expect(b).toBeLessThanOrEqual(10);
+      expect(p.prompt).toBe(`${a} + ${b}`);
+      seen.add(`${Math.min(a, b)}+${Math.max(a, b)}`);
+    }
+    expect(FACTS).toHaveLength(55);
+    expect(seen.size).toBe(55);
+  });
+
+  it('fact walkthroughs end with the fact itself', () => {
+    for (const [a, b] of FACTS) {
+      const p = factProblem(a, b);
+      expect(p.steps[p.steps.length - 1].text).toMatch(new RegExp(`${a} \\+ ${b} = ${a + b}$`));
+      if (a < 10 && b < 10 && a + b > 10) expect(p.steps[0].text).toMatch(/make 10/);
     }
   });
 });

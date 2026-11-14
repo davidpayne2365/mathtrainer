@@ -3,7 +3,7 @@
  * retry scheduling after a miss, and progress statistics. Pure functions over
  * a plain JSON `Progress` object so it is easy to persist and test.
  */
-import { LEVELS, TYPES, generateOfType, levelDef, maxLevel } from './generators';
+import { FACTS, LEVELS, TYPES, factKey, factProblem, generateOfType, levelDef, maxLevel } from './generators';
 import { SKILLS, type Problem, type Rng, type Skill } from './types';
 
 export type Outcome = 'ok' | 'slow' | 'wrong';
@@ -37,8 +37,17 @@ export interface RetryItem {
   due: number;
 }
 
+/** Recent outcomes for one addition fact (a + b and b + a share a record). */
+export interface FactStat {
+  n: number;
+  recent: Outcome[];
+}
+
+export type FactStatus = 'new' | 'learning' | 'mastered';
+
 export interface Progress {
   version: 1;
+  facts: Record<string, FactStat>;
   unlocked: Record<Skill, number>;
   levels: Record<string, LevelStat>;
   types: Record<string, TypeStat>;
@@ -54,6 +63,9 @@ export const UNLOCK_ACCURACY = 0.9;
 export const RECENT_TYPE = 10;
 /** A missed type comes back this many questions later. */
 export const RETRY_GAP = 3;
+/** A fact is mastered after this many fast, correct answers in a row. */
+export const FACT_MASTERY_RUN = 3;
+const RECENT_FACT = 6;
 
 export function defaultProgress(): Progress {
   return {
@@ -61,6 +73,7 @@ export function defaultProgress(): Progress {
     unlocked: { add: 1, sub: 1, pct: 1 },
     levels: {},
     types: {},
+    facts: {},
     days: {},
     retry: [],
     answered: 0,
@@ -123,6 +136,14 @@ export function recordAnswer(prog: Progress, problem: Problem, input: AnswerInpu
   ts.recent.push(outcome);
   if (ts.recent.length > RECENT_TYPE) ts.recent.splice(0, ts.recent.length - RECENT_TYPE);
 
+  // Per-fact memory (addition facts 1–10).
+  if (problem.operands && type === 'add.fact') {
+    const fs = (prog.facts[factKey(...problem.operands)] ??= { n: 0, recent: [] });
+    fs.n++;
+    fs.recent.push(outcome);
+    if (fs.recent.length > RECENT_FACT) fs.recent.splice(0, fs.recent.length - RECENT_FACT);
+  }
+
   // Daily totals (drive trends and the streak).
   const dk = dayKey(now);
   const day = (prog.days[dk] ??= {});
@@ -172,7 +193,7 @@ export function nextProblem(prog: Progress, pool: PoolEntry[], rng: Rng = Math.r
   if (dueIdx >= 0) {
     const [r] = prog.retry.splice(dueIdx, 1);
     for (let i = 0; i < 10; i++) {
-      const p = generateOfType(r.type, r.level, rng);
+      const p = r.type === 'add.fact' ? pickFact(prog, rng, r.level) : generateOfType(r.type, r.level, rng);
       if (p.prompt !== avoidPrompt) return p;
     }
   }
@@ -194,7 +215,7 @@ export function nextProblem(prog: Progress, pool: PoolEntry[], rng: Rng = Math.r
         break;
       }
     }
-    const p = generateOfType(c.type, c.level.level, rng);
+    const p = c.type === 'add.fact' ? pickFact(prog, rng, c.level.level) : generateOfType(c.type, c.level.level, rng);
     if (p.prompt !== avoidPrompt) return p;
   }
   return generateOfType(cands[0].type, cands[0].level.level, rng);
@@ -205,10 +226,52 @@ export function drillPool(prog: Progress, skills: Skill[]): PoolEntry[] {
   const pool: PoolEntry[] = [];
   for (const skill of skills) {
     const top = prog.unlocked[skill];
-    const start = skill === 'add' && top > 1 ? 2 : 1;
+    // Keep facts in the mix until every one is memorized.
+    const start = skill === 'add' && top > 1 && factSummary(prog).mastered === FACTS.length ? 2 : 1;
     for (let l = start; l <= top; l++) pool.push({ skill, level: l });
   }
   return pool;
+}
+
+// ----------------------------------------------------------------- facts
+
+export function factStatus(fs: FactStat | undefined): FactStatus {
+  if (!fs || fs.n === 0) return 'new';
+  const tail = fs.recent.slice(-FACT_MASTERY_RUN);
+  return tail.length >= FACT_MASTERY_RUN && tail.every((o) => o === 'ok') ? 'mastered' : 'learning';
+}
+
+/** How often to show a fact: unseen and shaky facts often, mastered ones occasionally. */
+export function factWeight(fs: FactStat | undefined): number {
+  const status = factStatus(fs);
+  if (status === 'new') return 2;
+  if (status === 'mastered') return 0.25;
+  const r = fs!.recent;
+  const wrong = r.filter((o) => o === 'wrong').length / r.length;
+  const slow = r.filter((o) => o === 'slow').length / r.length;
+  // The latest answer matters most for memorizing: a fresh miss comes back soon.
+  const last = r[r.length - 1];
+  const recency = last === 'wrong' ? 3 : last === 'slow' ? 1.5 : 0;
+  return 1 + 4 * wrong + 2 * slow + recency;
+}
+
+/** Choose the next fact, weighted toward ones not yet memorized; random order (8 + 7 or 7 + 8). */
+export function pickFact(prog: Progress, rng: Rng = Math.random, level = 1): Problem {
+  const ws = FACTS.map(([a, b]) => factWeight(prog.facts[factKey(a, b)]));
+  let r = rng() * ws.reduce((x, y) => x + y, 0);
+  let i = 0;
+  for (; i < ws.length - 1; i++) {
+    r -= ws[i];
+    if (r <= 0) break;
+  }
+  const [a, b] = FACTS[i];
+  return rng() < 0.5 ? factProblem(a, b, level) : factProblem(b, a, level);
+}
+
+export function factSummary(prog: Progress) {
+  const counts = { new: 0, learning: 0, mastered: 0 };
+  for (const [a, b] of FACTS) counts[factStatus(prog.facts[factKey(a, b)])]++;
+  return { ...counts, total: FACTS.length };
 }
 
 // ---------------------------------------------------------------- statistics
@@ -323,7 +386,9 @@ export function normalize(raw: unknown): Progress {
     unlocked,
     levels: r.levels ?? {},
     types: r.types ?? {},
+    facts: r.facts ?? {},
     days: r.days ?? {},
-    retry: Array.isArray(r.retry) ? r.retry : [],
+    // Drop retries for problem types that no longer exist (e.g. the old make-10 level).
+    retry: Array.isArray(r.retry) ? r.retry.filter((x) => x && TYPES[x.type]) : [],
   };
 }

@@ -79,6 +79,15 @@ export function roundAdjustAddSteps(a: number, b: number): Step[] | null {
   ];
 }
 
+/** A basic fact (1–10 + 1–10). Recall is the goal; make-10 is the memory aid when it crosses 10. */
+export function factSteps(a: number, b: number): Step[] {
+  const sum = a + b;
+  if (a < 10 && b < 10 && sum > 10) {
+    return [...make10Steps(a, b), { text: `So ${a} + ${b} = ${sum}`, value: sum }];
+  }
+  return [{ text: `${a} + ${b} = ${sum}`, value: sum }];
+}
+
 /** The fast way for a + b. */
 export function addSteps(a: number, b: number): Step[] {
   if (a < 10 && b < 10 && a + b > 10) return make10Steps(a, b);

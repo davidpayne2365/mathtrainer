@@ -29,6 +29,8 @@ export interface Problem {
   /** Display decoration for the answer field. */
   prefix?: string;
   suffix?: string;
+  /** The two numbers, for fact-level tracking (addition facts). */
+  operands?: [number, number];
 }
 
 export type Rng = () => number;
