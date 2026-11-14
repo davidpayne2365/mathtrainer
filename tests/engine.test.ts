@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   RETRY_GAP,
   defaultProgress,
-  drillPool,
   factStatus,
-  factSummary,
   pickFact,
   nextProblem,
   normalize,
@@ -88,23 +86,6 @@ describe('adaptive selection', () => {
     expect(prog.retry).toHaveLength(0);
   });
 
-  it('drill pool keeps facts in until all are mastered', () => {
-    const prog = defaultProgress();
-    prog.unlocked.add = 2;
-    expect(drillPool(prog, ['add'])[0]).toEqual({ skill: 'add', level: 1 });
-  });
-
-  it('drill pool covers unlocked levels and skips facts once all are mastered', () => {
-    const prog = defaultProgress();
-    masterAll(prog);
-    expect(factSummary(prog, ADD).mastered).toBe(55);
-    prog.unlocked.add = 3;
-    expect(drillPool(prog, ['add', 'pct'])).toEqual([
-      { skill: 'add', level: 2 },
-      { skill: 'add', level: 3 },
-      { skill: 'pct', level: 1 },
-    ]);
-  });
 });
 
 describe('facts 1–10', () => {

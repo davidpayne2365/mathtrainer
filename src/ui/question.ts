@@ -20,7 +20,7 @@ export interface QuestionOpts {
   onNext: (info?: { flash?: Flash }) => void;
   /** Confirmation of the previous (correct) answer, shown above the prompt. */
   flash?: Flash;
-  /** Fired when the walkthrough is shown (Drill pauses its clock). */
+  /** Fired once the answer is recorded. */
   onReview?: (res: AnswerResult & { correct: boolean; ms: number }) => void;
   nextLabel?: string;
 }

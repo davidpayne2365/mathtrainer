@@ -11,9 +11,7 @@ A correct answer moves straight on to the next question (the previous problem's 
 
 ## Sections
 
-- **Learn** — the method for each skill, worked examples, and a tap-to-reveal "try one".
 - **Practice** — untimed, leveled problems. "Show method" reveals one step per tap. The answer is checked automatically as you type.
-- **Drill** — 60-second rounds or 10-question sets mixing everything you've unlocked; ends with accuracy and seconds per question.
 - **Progress** — day streak, per-skill accuracy and speed trends, and your weakest problem types.
 
 Levels unlock at 90% accuracy over the last 20 questions. The generator leans toward problem types you miss or answer slowly, and a missed type comes back a few questions later as a fresh problem. Progress is stored in `localStorage` on your device.
@@ -51,6 +49,6 @@ Vite + vanilla TypeScript, no runtime dependencies and no network calls at runti
 src/core/methods.ts     step-by-step fast-way explanations
 src/core/generators.ts  skills → levels → problem types
 src/core/engine.ts      unlocks, adaptive weighting, retries, stats
-src/ui/*                Learn / Practice / Drill / Progress views
+src/ui/*                Practice / Progress views
 tests/*                 vitest unit tests
 ```

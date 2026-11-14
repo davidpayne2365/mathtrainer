@@ -43,14 +43,11 @@ export function svg(tag: string, attrs: Record<string, string | number> = {}, ..
 
 /** Simple stroke icons (24×24). */
 const ICONS: Record<string, string> = {
-  learn: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5',
   practice: 'M12 3v4M12 17v4M3 12h4M17 12h4M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0',
-  drill: 'M12 8v5l3 2M9 2h6M12 22a9 9 0 1 0 0-18a9 9 0 0 0 0 18z',
   progress: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
   check: 'M4 12l5 5L20 6',
   x: 'M6 6l12 12M18 6L6 18',
-  back: 'M15 18l-6-6l6-6',
 };
 
 export function icon(name: keyof typeof ICONS | string, size = 22): SVGElement {

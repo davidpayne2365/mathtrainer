@@ -3,7 +3,7 @@
  * retry scheduling after a miss, and progress statistics. Pure functions over
  * a plain JSON `Progress` object so it is easy to persist and test.
  */
-import { FACT_SETS, FACT_TYPES, type FactSet, type FactSkill } from './facts';
+import { FACT_TYPES, type FactSet } from './facts';
 import { LEVELS, TYPES, factProblem, generateOfType, levelDef, maxLevel } from './generators';
 import { SKILLS, type Problem, type Rng, type Skill } from './types';
 
@@ -222,19 +222,6 @@ export function nextProblem(prog: Progress, pool: PoolEntry[], rng: Rng = Math.r
     if (p.prompt !== avoidPrompt) return p;
   }
   return generateOfType(cands[0].type, cands[0].level.level, rng);
-}
-
-/** Levels used by Drill for the chosen skills: everything unlocked; facts stay in until all are mastered. */
-export function drillPool(prog: Progress, skills: Skill[]): PoolEntry[] {
-  const pool: PoolEntry[] = [];
-  for (const skill of skills) {
-    const top = prog.unlocked[skill];
-    // Keep facts in the mix until every one is memorized.
-    const set = FACT_SETS[skill as FactSkill];
-    const start = set && top > 1 && factSummary(prog, set).mastered === set.facts.length ? 2 : 1;
-    for (let l = start; l <= top; l++) pool.push({ skill, level: l });
-  }
-  return pool;
 }
 
 // ----------------------------------------------------------------- facts

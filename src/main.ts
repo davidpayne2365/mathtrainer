@@ -1,17 +1,12 @@
 import './style.css';
-import { SKILLS, type Skill } from './core/types';
 import { app, type View } from './ui/app';
 import { h, icon } from './ui/dom';
-import { drillView } from './ui/drill';
-import { learnIndexView, lessonView } from './ui/learn';
 import { practiceView } from './ui/practice';
 import { progressView } from './ui/progress';
 import { applyTheme } from './ui/theme';
 
 const TABS = [
-  { hash: '#/learn', label: 'Learn', icon: 'learn' },
   { hash: '#/practice', label: 'Practice', icon: 'practice' },
-  { hash: '#/drill', label: 'Drill', icon: 'drill' },
   { hash: '#/progress', label: 'Progress', icon: 'progress' },
 ];
 
@@ -27,15 +22,9 @@ let current: View | undefined;
 
 function route() {
   const hash = location.hash || '#/practice';
-  const [, section, arg] = hash.split('/');
+  const [, section] = hash.split('/');
   current?.cleanup?.();
   switch (section) {
-    case 'learn':
-      current = arg && (SKILLS as string[]).includes(arg) ? lessonView(arg as Skill) : learnIndexView();
-      break;
-    case 'drill':
-      current = drillView();
-      break;
     case 'progress':
       current = progressView();
       break;
