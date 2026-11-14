@@ -3,7 +3,7 @@
  * retry scheduling after a miss, and progress statistics. Pure functions over
  * a plain JSON `Progress` object so it is easy to persist and test.
  */
-import { FACT_TYPES, type FactSet } from './facts';
+import { FACT_SETS, FACT_TYPES, type FactSet, type FactSkill } from './facts';
 import { LEVELS, TYPES, factProblem, generateOfType, levelDef, maxLevel } from './generators';
 import { SKILLS, type Problem, type Rng, type Skill } from './types';
 
@@ -122,11 +122,6 @@ export function recordAnswer(prog: Progress, problem: Problem, input: AnswerInpu
   ls.recent.push(clean);
   if (ls.recent.length > UNLOCK_WINDOW) ls.recent.splice(0, ls.recent.length - UNLOCK_WINDOW);
 
-  let unlocked: number | undefined;
-  if (level === prog.unlocked[skill] && level < maxLevel(skill) && canUnlock(ls)) {
-    prog.unlocked[skill] = level + 1;
-    unlocked = level + 1;
-  }
 
   // Problem-type stats (drive weighting and the weak-spots list).
   const ts = (prog.types[type] ??= { n: 0, wrong: 0, slow: 0, totalMs: 0, recent: [] });
@@ -146,6 +141,13 @@ export function recordAnswer(prog: Progress, problem: Problem, input: AnswerInpu
     if (fs.recent.length > RECENT_FACT) fs.recent.splice(0, fs.recent.length - RECENT_FACT);
   }
 
+  // Unlock the next level (after fact memory is updated, so the last fact mastered counts).
+  let unlocked: number | undefined;
+  if (level === prog.unlocked[skill] && level < maxLevel(skill) && levelPassed(prog, skill, level)) {
+    prog.unlocked[skill] = level + 1;
+    unlocked = level + 1;
+  }
+
   // Daily totals (drive trends and the streak).
   const dk = dayKey(now);
   const day = (prog.days[dk] ??= {});
@@ -163,6 +165,22 @@ export function recordAnswer(prog: Progress, problem: Problem, input: AnswerInpu
     prog.retry.push({ type, skill, level, due: prog.answered + RETRY_GAP });
   }
   return { outcome, unlocked };
+}
+
+/** The facts level of a skill (level 1 of add, sub, mul), if it has one. */
+export function factSetFor(skill: Skill, level: number): FactSet | undefined {
+  return level === 1 ? FACT_SETS[skill as FactSkill] : undefined;
+}
+
+/** Facts levels need every fact mastered; other levels need 90% over the last 20. */
+export function levelPassed(prog: Progress, skill: Skill, level: number): boolean {
+  const set = factSetFor(skill, level);
+  if (set) {
+    const f = factSummary(prog, set);
+    return f.mastered === f.total;
+  }
+  const ls = prog.levels[levelKey(skill, level)];
+  return !!ls && canUnlock(ls);
 }
 
 export function canUnlock(ls: LevelStat): boolean {
@@ -388,6 +406,12 @@ export function normalize(raw: unknown): Progress {
   for (const s of SKILLS) {
     const v = r.unlocked?.[s];
     if (typeof v === 'number' && v >= 1) unlocked[s] = Math.min(Math.floor(v), maxLevel(s));
+  }
+  // Facts come first: level 2+ stays locked until every fact in level 1 is mastered.
+  const facts = r.facts ?? {};
+  for (const s of SKILLS) {
+    const set = factSetFor(s, 1);
+    if (set && unlocked[s] > 1 && !set.facts.every((f) => factStatus(facts[set.keyOf(f)]) === 'mastered')) unlocked[s] = 1;
   }
   return {
     ...base,

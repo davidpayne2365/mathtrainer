@@ -25,19 +25,56 @@ import { mulberry32 } from '../src/core/util';
 const rng = mulberry32(42);
 
 describe('level unlocking', () => {
-  it('unlocks the next level at 90% over the last 20', () => {
+  it('unlocks a non-facts level at 90% over the last 20', () => {
     const prog = defaultProgress();
-    for (let i = 0; i < 19; i++) recordAnswer(prog, generate('add', 1, rng), { correct: true, ms: 1000 });
-    expect(prog.unlocked.add).toBe(1);
-    const res = recordAnswer(prog, generate('add', 1, rng), { correct: true, ms: 1000 });
+    for (let i = 0; i < 19; i++) recordAnswer(prog, generate('pct', 1, rng), { correct: true, ms: 1000 });
+    expect(prog.unlocked.pct).toBe(1);
+    const res = recordAnswer(prog, generate('pct', 1, rng), { correct: true, ms: 1000 });
     expect(res.unlocked).toBe(2);
-    expect(prog.unlocked.add).toBe(2);
+    expect(prog.unlocked.pct).toBe(2);
   });
 
   it('does not unlock below 90%', () => {
     const prog = defaultProgress();
-    for (let i = 0; i < 20; i++) recordAnswer(prog, generate('sub', 1, rng), { correct: i % 5 !== 0, ms: 1000 });
-    expect(prog.unlocked.sub).toBe(1); // 16/20 = 80%
+    for (let i = 0; i < 20; i++) recordAnswer(prog, generate('pct', 1, rng), { correct: i % 5 !== 0, ms: 1000 });
+    expect(prog.unlocked.pct).toBe(1); // 16/20 = 80%
+  });
+
+  it('facts level 1 stays locked at 100% accuracy until every fact is mastered', () => {
+    const prog = defaultProgress();
+    for (let i = 0; i < 40; i++) recordAnswer(prog, generate('add', 1, rng), { correct: true, ms: 800 });
+    expect(prog.unlocked.add).toBe(1);
+    const all = ADD.facts;
+    const unlockedAt: number[] = [];
+    let n = 0;
+    for (const f of all) {
+      for (let i = 0; i < 3; i++) {
+        n++;
+        if (recordAnswer(prog, factProblem(ADD, f, keepOrder), { correct: true, ms: 800 }).unlocked === 2) unlockedAt.push(n);
+      }
+      // Never unlocked while any fact is still unmastered.
+      if (prog.unlocked.add === 2) expect(all.every((g) => factStatus(prog.facts[ADD.keyOf(g)]) === 'mastered')).toBe(true);
+    }
+    expect(unlockedAt).toHaveLength(1);
+    expect(prog.unlocked.add).toBe(2);
+  });
+
+  it('subtraction facts gate subtraction level 2 the same way', () => {
+    const prog = defaultProgress();
+    const SUB = FACT_SETS.sub;
+    for (const f of SUB.facts.slice(1)) for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(SUB, f, keepOrder), { correct: true, ms: 800 });
+    expect(prog.unlocked.sub).toBe(1); // one fact still not mastered
+    for (let i = 0; i < 3; i++) recordAnswer(prog, factProblem(SUB, SUB.facts[0], keepOrder), { correct: true, ms: 800 });
+    expect(prog.unlocked.sub).toBe(2);
+  });
+
+  it('re-locks stored progress that skipped fact mastery', () => {
+    const p = normalize({ version: 2, unlocked: { add: 3, sub: 2, mul: 1, pct: 4 } });
+    expect(p.unlocked).toEqual({ add: 1, sub: 1, mul: 1, pct: 4 });
+    const prog = defaultProgress();
+    masterAll(prog);
+    prog.unlocked.add = 3;
+    expect(normalize(JSON.parse(JSON.stringify(prog))).unlocked.add).toBe(3);
   });
 
   it('hinted answers do not count toward unlocking', () => {
@@ -139,7 +176,7 @@ describe('stats', () => {
 
   it('normalizes junk storage', () => {
     expect(normalize(null).unlocked.add).toBe(1);
-    expect(normalize({ unlocked: { add: 99 } }).unlocked.add).toBe(5);
+    expect(normalize({ unlocked: { pct: 99 } }).unlocked.pct).toBe(6);
   });
 });
 
@@ -153,9 +190,9 @@ describe('migration from v1', () => {
     };
     const p = normalize(old);
     expect(p.version).toBe(2);
-    expect(p.unlocked).toEqual({ add: 2, sub: 4, mul: 1, pct: 1 });
+    expect(p.unlocked).toEqual({ add: 1, sub: 1, mul: 1, pct: 1 }); // facts not mastered yet, so level 2+ re-locks
     expect(Object.keys(p.levels).sort()).toEqual(['add:2', 'sub:4']);
     expect(p.retry[0].level).toBe(4);
-    expect(normalize(p).unlocked.sub).toBe(4); // idempotent once migrated
+    expect(Object.keys(normalize(p).levels).sort()).toEqual(['add:2', 'sub:4']); // idempotent once migrated
   });
 });

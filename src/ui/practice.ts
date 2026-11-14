@@ -1,4 +1,4 @@
-import { UNLOCK_WINDOW, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
+import { UNLOCK_WINDOW, factSetFor, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
 import { LEVELS, levelDef } from '../core/generators';
 import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
@@ -54,7 +54,7 @@ export function practiceView(): View {
             type: 'button',
             class: 'lvl' + (d.level === level ? ' on' : '') + (locked ? ' locked' : ''),
             disabled: locked,
-            title: locked ? `Locked: reach 90% on level ${d.level - 1}` : d.name,
+            title: locked ? (factSetFor(skill, d.level - 1) ? `Locked: master every fact in level ${d.level - 1}` : `Locked: reach 90% on level ${d.level - 1}`) : d.name,
             'aria-label': `Level ${d.level}: ${d.name}${locked ? ' (locked)' : ''}`,
             onclick: () => {
               level = d.level;
@@ -74,7 +74,13 @@ export function practiceView(): View {
     const def = levelDef(skill, level);
     const lp = levelProgress(app.prog, skill, level);
     const isTop = level === LEVELS[skill].length;
-    const need = level < app.prog.unlocked[skill] || isTop ? '' : ` · 90% over ${UNLOCK_WINDOW} unlocks level ${level + 1}`;
+    const factLevel = factSetFor(skill, level);
+    const need =
+      level < app.prog.unlocked[skill] || isTop
+        ? ''
+        : factLevel
+          ? ` · master all ${factLevel.facts.length} facts to unlock level ${level + 1}`
+          : ` · 90% over ${UNLOCK_WINDOW} unlocks level ${level + 1}`;
     meter.replaceChildren(
       h('div', { class: 'meter-name' }, h('strong', null, `L${level} · ${def.name}`), h('span', null, def.blurb)),
       h(
