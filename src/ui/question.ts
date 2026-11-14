@@ -93,7 +93,8 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
   // Set as an attribute: Safari's `autocorrect` property is a boolean, so 'off' would turn it on.
   input.setAttribute('autocorrect', 'off');
 
-  const status = h('div', { class: 'status', 'aria-live': 'polite' });
+  // Under the answer box: first the previous answer's ✓ line, then this answer's result.
+  const status = h('div', { class: 'status', 'aria-live': 'polite' }, opts.flash ? flashLine(opts.flash) : null);
   const hintBox = h('div', { class: 'hint' });
   const actions = h('div', { class: 'actions' });
   const review = h('div', { class: 'review' });
@@ -122,7 +123,6 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     'section',
     { class: 'question' },
     h('div', { class: 'qmeta' }, `${level.name}`),
-    h('div', { class: 'flash-slot' }, opts.flash ? flashLine(opts.flash) : null),
     h('div', { class: 'prompt' + (problem.prompt.length > 24 ? ' wordy' : '') }, problem.prompt),
     field,
     status,
@@ -201,10 +201,10 @@ export function renderQuestion(opts: QuestionOpts): QuestionHandle {
     hintBox.replaceChildren();
     actions.replaceChildren();
     const title = isFactType(problem.type) ? 'Lock it in' : 'The fast way';
-    review.replaceChildren(h('div', { class: 'review-title' }, title), lesson(problem.steps), nextBtn);
+    // Next sits right under the answer so it's reachable without scrolling; the lesson follows.
+    review.replaceChildren(nextBtn, h('div', { class: 'review-title' }, title), lesson(problem.steps));
     opts.onReview?.({ ...res, correct, ms });
     nextBtn.focus({ preventScroll: true });
-    requestAnimationFrame(() => nextBtn.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
   }
 
   input.addEventListener('input', onInput);

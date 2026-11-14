@@ -65,6 +65,22 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Single fixed screen: the page itself never scrolls (so focusing the answer box
+   can't make it jump); only the content area under the header scrolls. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -74,9 +90,12 @@ body {
 }
 
 #view {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: max(16px, env(safe-area-inset-top)) 16px calc(var(--tabs-h) + 24px + env(safe-area-inset-bottom));
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: max(8px, env(safe-area-inset-top)) max(16px, calc((100% - 528px) / 2)) 24px;
 }
 
 h1 {
@@ -102,8 +121,7 @@ a {
 
 /* ---------- bottom tabs ---------- */
 .tabs {
-  position: fixed;
-  inset: auto 0 0 0;
+  flex: none;
   display: flex;
   justify-content: center;
   background: var(--surface);
@@ -236,7 +254,7 @@ a {
   flex: 1;
   font: inherit;
   font-weight: 600;
-  min-height: 44px;
+  min-height: 42px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -255,7 +273,7 @@ a {
 }
 .lvl {
   flex: 1;
-  min-height: 44px;
+  min-height: 38px;
   font: inherit;
   font-weight: 700;
   border-radius: 10px;
@@ -690,4 +708,61 @@ a {
 }
 .factcard[open] summary {
   margin-bottom: 8px;
+}
+
+/* ---------- compact practice header ---------- */
+.practice .seg,
+.practice .levels {
+  margin-bottom: 8px;
+}
+.practice .meter .bar {
+  margin: 4px 0 3px;
+}
+.practice .stage {
+  margin-top: 6px;
+}
+.practice .prompt {
+  margin: 4px 0 10px;
+}
+.flash-text {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.review .btn.big {
+  margin: 4px 0 10px;
+}
+
+.practice .seg {
+  padding: 3px;
+}
+.practice .seg button {
+  min-height: 38px;
+}
+.practice .lvl {
+  min-height: 34px;
+}
+.practice .seg,
+.practice .levels {
+  margin-bottom: 6px;
+}
+.practice .meter-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+.practice .meter-sub strong {
+  color: var(--text);
+}
+.practice .prompt {
+  font-size: clamp(2.2rem, 11vw, 3rem);
+}
+.practice .prompt.wordy {
+  font-size: clamp(1.15rem, 5vw, 1.4rem);
+}
+.status .flash {
+  max-width: 100%;
 }

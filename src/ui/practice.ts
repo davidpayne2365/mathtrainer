@@ -4,7 +4,6 @@ import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
 import { h, icon, toast } from './dom';
 import { renderQuestion, type Flash } from './question';
-import { FACT_SETS, type FactSet, type FactSkill } from '../core/facts';
 
 const SHORT: Record<Skill, string> = { add: 'Add', sub: 'Subtract', mul: 'Times', pct: 'Percent' };
 
@@ -75,29 +74,24 @@ export function practiceView(): View {
     const lp = levelProgress(app.prog, skill, level);
     const isTop = level === LEVELS[skill].length;
     const factLevel = factSetFor(skill, level);
-    const need =
-      level < app.prog.unlocked[skill] || isTop
-        ? ''
-        : factLevel
-          ? ` · master all ${factLevel.facts.length} facts to unlock level ${level + 1}`
-          : ` · 90% over ${UNLOCK_WINDOW} unlocks level ${level + 1}`;
+    const locked = !(level < app.prog.unlocked[skill] || isTop);
+    const f = factLevel ? factSummary(app.prog, factLevel) : null;
+    // One short status line keeps the header small so the answer box sits high on screen.
+    const sub = f
+      ? [h('strong', null, def.name), ` · ${f.mastered}/${f.total} mastered${locked ? ` (all unlock L${level + 1})` : ''} · `, h('a', { href: '#/progress' }, 'grid')]
+      : [h('strong', null, def.name), ` · last ${lp.recentN}: ${lp.recentCorrect} right${locked ? ` · 90% unlocks L${level + 1}` : ''}`];
+    const pctDone = f ? f.mastered / f.total : lp.recentCorrect / UNLOCK_WINDOW;
     meter.replaceChildren(
-      h('div', { class: 'meter-name' }, h('strong', null, `L${level} · ${def.name}`), h('span', null, def.blurb)),
       h(
         'div',
         { class: 'bar', title: `${lp.recentCorrect}/${lp.recentN} correct` },
-        h('span', { style: { width: `${(lp.recentCorrect / UNLOCK_WINDOW) * 100}%` } }),
-        h('i', { style: { left: '90%' } }),
+        h('span', { style: { width: `${pctDone * 100}%` } }),
+        f ? null : h('i', { style: { left: '90%' } }),
       ),
-      h('div', { class: 'meter-sub' }, `Last ${lp.recentN}: ${lp.recentCorrect} right${need}`),
-      ...(level === 1 && FACT_SETS[skill as FactSkill] ? [factsLine(FACT_SETS[skill as FactSkill])] : []),
+      h('div', { class: 'meter-sub' }, ...sub),
     );
   }
 
-  function factsLine(set: FactSet) {
-    const f = factSummary(app.prog, set);
-    return h('div', { class: 'meter-sub facts-line' }, `Facts mastered: ${f.mastered}/${f.total} · `, h('a', { href: '#/progress' }, 'see grid'));
-  }
 
   function ask(info?: { flash?: Flash }) {
     const problem = nextProblem(app.prog, [{ skill, level }], Math.random, last?.prompt);
@@ -119,6 +113,9 @@ export function practiceView(): View {
       flash: info?.flash,
     });
     stage.replaceChildren(q.el);
+    // New question starts at the top of the screen; never scroll the page itself.
+    const view = document.getElementById('view');
+    if (view) view.scrollTop = 0;
     q.focus();
   }
 
