@@ -68,13 +68,38 @@ describe('level unlocking', () => {
     expect(prog.unlocked.sub).toBe(2);
   });
 
-  it('re-locks stored progress that skipped fact mastery', () => {
-    const p = normalize({ version: 2, unlocked: { add: 3, sub: 2, mul: 1, pct: 4 } });
-    expect(p.unlocked).toEqual({ add: 1, sub: 1, mul: 1, pct: 4 });
+  it('an unlocked level stays unlocked after reloading, even if a fact slips', () => {
     const prog = defaultProgress();
     masterAll(prog);
-    prog.unlocked.add = 3;
-    expect(normalize(JSON.parse(JSON.stringify(prog))).unlocked.add).toBe(3);
+    expect(prog.unlocked.add).toBe(2);
+    // One slow answer drops 8 + 7 back to "learning"...
+    recordAnswer(prog, fact(8, 7), { correct: true, ms: 9000 });
+    expect(factStatus(prog.facts['7+8'])).toBe('learning');
+    // ...but reloading the app must not take level 2 away.
+    expect(normalize(JSON.parse(JSON.stringify(prog))).unlocked.add).toBe(2);
+  });
+
+  it('gives back a level 2 that the old re-lock bug took away', () => {
+    const prog = defaultProgress();
+    masterAll(prog);
+    recordAnswer(prog, fact(8, 7), { correct: true, ms: 9000 }); // slipped after unlocking
+    const buggy = { ...JSON.parse(JSON.stringify(prog)), version: 3, unlocked: { add: 1, sub: 1, mul: 1, pct: 1 } };
+    const p = normalize(buggy);
+    expect(p.unlocked.add).toBe(2);
+    expect(p.version).toBe(4);
+    expect(p.unlocked.sub).toBe(1); // nothing earned there, nothing given
+  });
+
+  it('does not hand out level 2 when the facts were never all mastered', () => {
+    const prog = defaultProgress();
+    masterAll(prog, ADD.facts.slice(1)); // one fact never mastered
+    const stored = { ...JSON.parse(JSON.stringify(prog)), version: 3 };
+    expect(normalize(stored).unlocked.add).toBe(1);
+  });
+
+  it('restores any level you have answers in', () => {
+    const p = normalize({ version: 3, unlocked: { add: 1, sub: 1, mul: 1, pct: 1 }, levels: { 'sub:3': { n: 4, correct: 4, recent: [true] } } });
+    expect(p.unlocked.sub).toBe(3);
   });
 
   it('hinted answers do not count toward unlocking', () => {
@@ -189,8 +214,8 @@ describe('migrating stored progress', () => {
       retry: [{ type: 'sub.33', skill: 'sub', level: 3, due: 4 }],
     };
     const p = normalize(old);
-    expect(p.version).toBe(3);
-    expect(p.unlocked).toEqual({ add: 1, sub: 1, mul: 1, pct: 1 }); // facts not mastered yet, so level 2+ re-locks
+    expect(p.version).toBe(4);
+    expect(p.unlocked).toEqual({ add: 3, sub: 5, mul: 1, pct: 1 }); // unlocked levels follow the renumbering
     // old sub L3 (3-digit − 3-digit) → v2 L4 → v3 L5; old add L2 (3-digit + 2-digit) → v3 L3
     expect(Object.keys(p.levels).sort()).toEqual(['add:3', 'sub:5']);
     expect(p.retry[0].level).toBe(5);

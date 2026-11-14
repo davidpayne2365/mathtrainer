@@ -47,7 +47,7 @@ export interface FactStat {
 export type FactStatus = 'new' | 'learning' | 'mastered';
 
 export interface Progress {
-  version: 3;
+  version: 4;
   facts: Record<string, FactStat>;
   unlocked: Record<Skill, number>;
   levels: Record<string, LevelStat>;
@@ -70,7 +70,7 @@ const RECENT_FACT = 6;
 
 export function defaultProgress(): Progress {
   return {
-    version: 3,
+    version: 4,
     unlocked: { add: 1, sub: 1, mul: 1, pct: 1 },
     levels: {},
     types: {},
@@ -398,13 +398,45 @@ function shiftLevels(r: Partial<Progress>, skill: Skill, from: number): Partial<
  * Upgrade stored progress when levels are inserted, so you keep what you had unlocked.
  *  v1 → v2: subtraction gained a facts level 1.
  *  v2 → v3: addition and subtraction gained a 2-digit level 2.
+ *  v3 → v4: give back unlocks that an earlier bug took away.
  */
 function migrate(r: Partial<Progress> & { version?: number }): Partial<Progress> {
   const v = r.version ?? 1;
   let out: Partial<Progress> = r;
   if (v < 2) out = shiftLevels(out, 'sub', 1);
   if (v < 3) out = shiftLevels(shiftLevels(out, 'add', 2), 'sub', 2);
+  if (v < 4) out = restoreUnlocks(out);
   return out;
+}
+
+/** True if the fact had 3 fast, correct answers in a row somewhere in its recent history. */
+function wasMastered(fs: FactStat | undefined): boolean {
+  if (!fs) return false;
+  let run = 0;
+  for (const o of fs.recent) {
+    run = o === 'ok' ? run + 1 : 0;
+    if (run >= FACT_MASTERY_RUN) return true;
+  }
+  return false;
+}
+
+/**
+ * v3 → v4: an earlier version re-locked level 2 on every load if any fact had since
+ * slipped from "mastered" (one slow answer is enough). Give those unlocks back:
+ * level 2 if every fact shows it was mastered, and any level you have answers in.
+ */
+function restoreUnlocks(r: Partial<Progress>): Partial<Progress> {
+  const unlocked = { ...defaultProgress().unlocked, ...(r.unlocked ?? {}) };
+  const facts = r.facts ?? {};
+  for (const s of SKILLS) {
+    const set = factSetFor(s, 1);
+    if (set && set.facts.every((f) => wasMastered(facts[set.keyOf(f)]))) unlocked[s] = Math.max(unlocked[s], 2);
+    for (const k of Object.keys(r.levels ?? {})) {
+      const [skill, lvl] = k.split(':');
+      if (skill === s && (r.levels![k]?.n ?? 0) > 0) unlocked[s] = Math.max(unlocked[s], Number(lvl));
+    }
+  }
+  return { ...r, unlocked };
 }
 
 /** Merge stored data over defaults, tolerating older or partial shapes. */
@@ -417,16 +449,10 @@ export function normalize(raw: unknown): Progress {
     const v = r.unlocked?.[s];
     if (typeof v === 'number' && v >= 1) unlocked[s] = Math.min(Math.floor(v), maxLevel(s));
   }
-  // Facts come first: level 2+ stays locked until every fact in level 1 is mastered.
-  const facts = r.facts ?? {};
-  for (const s of SKILLS) {
-    const set = factSetFor(s, 1);
-    if (set && unlocked[s] > 1 && !set.facts.every((f) => factStatus(facts[set.keyOf(f)]) === 'mastered')) unlocked[s] = 1;
-  }
   return {
     ...base,
     ...r,
-    version: 3,
+    version: 4,
     unlocked,
     levels: r.levels ?? {},
     types: r.types ?? {},
