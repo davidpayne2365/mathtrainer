@@ -1,4 +1,6 @@
-import { UNLOCK_WINDOW, factSetFor, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
+import { UNLOCK_WINDOW, factSetFor, factStatus, factSummary, levelProgress, nextProblem, recordAnswer } from '../core/engine';
+import { FACT_TYPES } from '../core/facts';
+import { playCorrect, playMastered, playUnlock } from './sound';
 import { LEVELS, levelDef } from '../core/generators';
 import { SKILLS, type Problem, type Skill } from '../core/types';
 import { app, type View } from './app';
@@ -14,6 +16,7 @@ export function practiceView(): View {
   const levelFor = (s: Skill) => Math.min(prefs.practiceLevel[s] ?? app.prog.unlocked[s], app.prog.unlocked[s]);
   let level = levelFor(skill);
   let last: Problem | undefined;
+  let current: { focus(): void } | undefined;
 
   const skillBar = h('div', { class: 'seg', role: 'tablist' });
   const levelBar = h('div', { class: 'levels' });
@@ -100,9 +103,16 @@ export function practiceView(): View {
       problem,
       hint: true,
       record: (p, input) => {
+        const set = FACT_TYPES[p.type];
+        const key = set && p.operands ? set.keyOf(p.operands) : null;
+        const wasMastered = key ? factStatus(app.prog.facts[key]) === 'mastered' : false;
         const res = recordAnswer(app.prog, p, input);
         app.save();
         renderMeter();
+        // Sounds: fanfare for a new level, sparkle for a newly mastered fact, chime for any right answer.
+        if (res.unlocked) playUnlock();
+        else if (key && !wasMastered && factStatus(app.prog.facts[key]) === 'mastered') playMastered();
+        else if (input.correct) playCorrect(app.prog.run);
         if (res.unlocked) {
           toast(`Level ${res.unlocked} unlocked: ${levelDef(p.skill, res.unlocked).name}`);
           renderControls();
@@ -113,6 +123,7 @@ export function practiceView(): View {
       flash: info?.flash,
     });
     stage.replaceChildren(q.el);
+    current = q;
     // New question starts at the top of the screen; never scroll the page itself.
     const view = document.getElementById('view');
     if (view) view.scrollTop = 0;
@@ -125,6 +136,6 @@ export function practiceView(): View {
   }
 
   restart();
-  return { el };
+  return { el, focus: () => current?.focus() };
 }
 

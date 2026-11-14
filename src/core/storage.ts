@@ -35,9 +35,10 @@ export interface Prefs {
   theme: Theme;
   practiceSkill: Skill;
   practiceLevel: Record<string, number>;
+  sound: boolean;
 }
 
-const defaultPrefs = (): Prefs => ({ theme: 'system', practiceSkill: 'add', practiceLevel: {} });
+const defaultPrefs = (): Prefs => ({ theme: 'system', practiceSkill: 'add', practiceLevel: {}, sound: true });
 
 export function loadPrefs(): Prefs {
   try {
